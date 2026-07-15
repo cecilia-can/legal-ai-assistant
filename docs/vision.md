@@ -43,6 +43,12 @@ ChatBot
 * PostgreSQL
 * Prisma
 
+### 部署（开发阶段）
+
+* 应用：[Vercel](https://vercel.com)（Git Push 自动部署）
+* 数据库：[Neon](https://neon.tech) PostgreSQL（`DATABASE_URL`）
+* 详见 [`docs/deployment.md`](./deployment.md)
+
 ### AI 能力
 
 * OpenAI Compatible API
@@ -230,6 +236,7 @@ ChatBot
 
 * Vision
 * Roadmap
+* Deployment
 * PRD
 * Spec
 * ADR

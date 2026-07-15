@@ -695,4 +695,4 @@
 
 开始执行 **Change 1.1：基础架构搭建**。
 
-相关文档：`docs/vision.md`
+相关文档：`docs/vision.md`、`docs/deployment.md`
