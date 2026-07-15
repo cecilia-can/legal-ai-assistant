@@ -1,110 +1,123 @@
 ---
 name: start-new-change
-description: Start a new roadmap Change with branch setup, task briefing, dual confirmation gates, OpenSpec artifact generation, and post-completion commit/PR guidance. Use when the user says they are starting a new phase, entering the next Change, or wants to begin a new task from the roadmap.
+description: 启动 roadmap 中的新 Change：从 main 创建新分支，展示本阶段任务，等待用户确认后生成 OpenSpec 文档，再等待第二次确认后进入实现。适用于用户说“开始新阶段”“开始 Change 1.2”“进入下一阶段”等场景。
 license: MIT
 compatibility: Requires openspec CLI, git, and docs/roadmap.md.
 metadata:
   author: legal-ai-assistant
-  version: "1.0"
+  version: "1.2"
 ---
 
-# Start New Change
+# 启动新 Change
 
-Kick off a new roadmap Change with branch preparation, scope briefing, dual confirmation gates, OpenSpec planning artifacts, and post-completion git guidance.
+用于从 `docs/roadmap.md` 启动一个新的开发 Change，并把分支创建、任务说明、OpenSpec 文档生成、实现确认、归档和提交提示串成固定流程。
 
-**Trigger phrases (examples):**
-- "开始新阶段"
-- "开始 Change 1.2"
-- "进入下一阶段"
-- "新建任务分支并开始 spec"
-- "start new change"
+触发示例：
 
----
-
-## Guardrails
-
-- **Do NOT** create OpenSpec artifacts before **Confirmation 1**.
-- **Do NOT** write implementation code before **Confirmation 2**.
-- **Do NOT** guess scope beyond `docs/roadmap.md` and archived changes.
-- **Do NOT** commit `.env` or other secret files.
-- **Always** create the git branch from an up-to-date `main`.
-- **Always** use Chinese for planning summaries shown to the user; use English for branch names, change slugs, and code identifiers.
-- If prerequisites are missing, **STOP** and explain what is blocked.
+- “开始新阶段”
+- “开始 Change 1.2”
+- “进入下一阶段”
+- “新建任务分支并开始 spec”
 
 ---
 
-## Naming Conventions
+## 核心规则
 
-| Item | Format | Example |
-|------|--------|---------|
-| Git branch | `feature_<change_slug>_<YYMMDD>` | `feature_ui_components_260713` |
-| OpenSpec change | kebab-case slug | `ui-components` |
-| Archive folder | `YYYY-MM-DD-<change-slug>` | `2026-07-13-ui-components` |
-
-Derive `<change_slug>` from the roadmap Change title (English, snake_case). Derive OpenSpec change slug from the same title (kebab-case).
+- 在用户第一次确认前，不创建 OpenSpec 文档。
+- 在用户第二次确认前，不写实现代码。
+- 不超出 `docs/roadmap.md`、已有 `openspec/specs/` 和归档 change 中定义的范围。
+- 不提交 `.env`、凭证或任何密钥文件。
+- 新分支总是从最新 `main` 创建。
+- 面向用户的说明、OpenSpec 文档正文、设计说明和任务描述必须使用中文。
+- 分支名、OpenSpec change 名、文件名、代码标识符使用英文。
+- OpenSpec 固定结构标记保留英文，例如 `## ADDED Requirements`、`### Requirement:`、`#### Scenario:`、`WHEN`、`THEN`。
+- 如果前置条件不满足，必须暂停并说明阻塞原因。
 
 ---
 
-## Workflow Overview
+## 命名规则
 
+| 项目 | 格式 | 示例 |
+|------|------|------|
+| Git 分支 | `feature_<change_slug>_<YYMMDD>` | `feature_ui_components_260713` |
+| OpenSpec change | kebab-case | `ui-components` |
+| 归档目录 | `YYYY-MM-DD-<change-slug>` | `2026-07-13-ui-components` |
+
+从 roadmap 的 Change 标题推导英文 slug。Git 分支使用 snake_case，OpenSpec change 使用 kebab-case。
+
+---
+
+## 总流程
+
+```text
+识别 Change
+→ 前置检查
+→ 从 main 创建分支
+→ 展示阶段任务
+→ 等待确认 1
+→ 生成 OpenSpec 文档
+→ 展示 spec 摘要
+→ 等待确认 2
+→ 按 tasks 实现
+→ 验证
+→ 提示用户手动沉淀知识
+→ 归档
+→ 提示 commit / push / PR
 ```
-Identify Change → Pre-checks → Create branch → Brief user → [Confirm 1]
-  → Generate OpenSpec artifacts → Brief specs → [Confirm 2]
-  → Implement (openspec-apply-change) → Verify → Archive → Commit/PR hints
-```
 
 ---
 
-## Step 1: Identify the Target Change
+## 1. 识别目标 Change
 
-1. Read `docs/roadmap.md` for Phase / Change definitions.
-2. If the user named a Change explicitly, use that Change.
-3. Otherwise, infer the **next** Change by checking:
-   - `openspec/changes/archive/` for completed changes
-   - `openspec/changes/` for active (non-archived) changes
-   - Roadmap dependency order (e.g. 1.2 requires 1.1)
-4. If ambiguous, use **AskQuestion** to let the user pick among eligible Changes.
+1. 读取 `docs/roadmap.md`。
+2. 如果用户明确指定 Change，例如“开始 Change 1.2”，使用该 Change。
+3. 如果用户只说“开始新阶段”，根据以下信息推断下一个 Change：
+   - `openspec/changes/archive/` 中已完成的 Change
+   - `openspec/changes/` 中未归档的 active Change
+   - roadmap 中的依赖顺序
+4. 如果存在歧义，使用 `AskQuestion` 让用户选择。
 
-Extract and prepare a briefing with:
-- Phase number and name
-- Change number and title
-- Time estimate
-- Goal
-- Work items (from roadmap)
-- Deliverables (files / directories)
-- Dependencies (prior Changes)
-- Non-Goals (infer from roadmap scope boundaries and later Changes)
+需要准备的阶段摘要：
+
+- Phase 编号和名称
+- Change 编号和标题
+- 时间估算
+- 目标
+- 工作内容
+- 交付物
+- 前置依赖
+- 明确不做的内容
+- 环境、依赖、数据库或外部服务影响
 
 ---
 
-## Step 2: Pre-flight Checks
+## 2. 前置检查
 
-Before creating a branch, verify:
+检查当前 git 状态：
 
-### Git state
 ```bash
 git status --short
 git branch --show-current
 ```
 
-- If there are uncommitted changes on `main`, warn the user and ask whether to commit, stash, or discard before continuing.
-- If not on `main`, switch to `main` first (unless user explicitly overrides).
+要求：
 
-### Prerequisites
-- Confirm dependency Changes are implemented and archived (or merged).
-- Check whether this Change needs:
-  - New npm dependencies
-  - New environment variables (update `.env.example` during implementation)
-  - Database schema changes / Prisma migrations
-  - External services (Neon, OpenAI API, etc.)
+- 如果当前不在 `main`，先切回 `main`。
+- 如果 `main` 有未提交改动，暂停并询问用户如何处理。
+- 确认前置 Change 已完成、归档或已合并。
+- 判断本 Change 是否可能需要：
+  - 新 npm 依赖
+  - 新环境变量
+  - Prisma migration
+  - 外部服务配置
 
-If blocked, **STOP** and list what must be resolved first.
+若发现阻塞，暂停并说明原因。
 
 ---
 
-## Step 3: Create Git Branch (before Confirmation 1)
+## 3. 从 main 创建分支
 
-Always branch from up-to-date `main`:
+始终从最新 `main` 创建分支：
 
 ```bash
 git switch main
@@ -112,16 +125,19 @@ git pull origin main
 git switch -c feature_<change_slug>_<YYMMDD>
 ```
 
-After switching, call **SetActiveBranch** with the new branch name.
+切换后调用 `SetActiveBranch` 同步当前活动分支。
 
-Announce:
-> 已创建并切换到分支 `feature_<change_slug>_<YYMMDD>`，基于最新 `main`。
+向用户说明：
+
+```text
+已创建并切换到分支 feature_<change_slug>_<YYMMDD>，基于最新 main。
+```
 
 ---
 
-## Step 4: Present Change Briefing → Confirmation 1
+## 4. 展示阶段任务，等待确认 1
 
-Show the user a structured summary in Chinese:
+在生成 OpenSpec 文档前，必须先向用户展示中文摘要：
 
 ```markdown
 ## 即将开始：<Change 编号> <Change 标题>
@@ -141,49 +157,63 @@ Show the user a structured summary in Chinese:
 - ...
 
 ### 依赖
-- Change X.X（已完成 / 未完成）
+- ...
 
-### 明确不做（Non-Goals）
+### 明确不做
 - ...
 
 ### 环境 / 技术前置
 - ...
 ```
 
-**STOP.** Ask the user to confirm before generating specs:
+然后暂停，询问：
 
-> 请确认是否开始本 Change 并生成 OpenSpec 文档。回复「确认开始」继续。
+```text
+请确认是否开始本 Change 并生成 OpenSpec 文档。回复「确认开始」继续。
+```
 
-**Do NOT** run `openspec new change` or write any artifact until the user confirms.
-
----
-
-## Step 5: Generate OpenSpec Artifacts (after Confirmation 1)
-
-Follow the **openspec-propose** skill workflow:
-
-1. `openspec new change "<kebab-case-slug>"`
-2. `openspec status --change "<slug>" --json`
-3. Create artifacts in dependency order:
-   - `proposal.md`
-   - `design.md`
-   - `specs/<capability>/spec.md` (one per capability)
-   - `tasks.md`
-4. Re-run `openspec status --change "<slug>"` until **4/4 artifacts complete**.
-
-Use `docs/roadmap.md`, `docs/vision.md`, and existing `openspec/specs/` as context. Planning documents MUST be written in Chinese.
-
-After generation, summarize:
-- Change name and location
-- Capabilities added or modified
-- Task count
-- Key design decisions
+未收到确认前，不运行 `openspec new change`，不写任何 OpenSpec artifact。
 
 ---
 
-## Step 6: Present Spec Summary → Confirmation 2
+## 5. 生成 OpenSpec 文档
 
-Show a concise spec summary and **STOP**:
+用户回复“确认开始”后，按照 OpenSpec 流程生成文档：
+
+```bash
+openspec new change "<kebab-case-slug>"
+openspec status --change "<slug>" --json
+```
+
+按依赖顺序创建：
+
+- `proposal.md`
+- `design.md`
+- `specs/<capability>/spec.md`
+- `tasks.md`
+
+写作要求：
+
+- 文档正文必须中文。
+- `proposal.md`、`design.md`、`tasks.md` 的标题和内容尽量中文。
+- spec 文件保留 OpenSpec 必需英文结构标记，但 Requirement 名称、Scenario 名称、正文、任务描述都使用中文。
+- 每个 capability 一个 spec 文件。
+- 每个 requirement 至少有一个 `#### Scenario:`。
+- tasks 必须使用 `- [ ]` checkbox 格式，方便 apply 阶段解析。
+
+生成后运行：
+
+```bash
+openspec status --change "<slug>"
+```
+
+确认显示 `4/4 artifacts complete`。
+
+---
+
+## 6. 展示 spec 摘要，等待确认 2
+
+OpenSpec 文档完成后，必须暂停并展示摘要：
 
 ```markdown
 ## OpenSpec 文档已生成
@@ -199,119 +229,142 @@ Show a concise spec summary and **STOP**:
 请确认 spec 是否符合预期。回复「确认 spec，开始实现」后我将按 tasks 执行。
 ```
 
-**Do NOT** implement code until the user confirms.
+未收到第二次确认前，不实现代码。
 
 ---
 
-## Step 7: Implement (after Confirmation 2)
+## 7. 实现
 
-Follow the **openspec-apply-change** skill:
+用户回复“确认 spec，开始实现”后，按 `openspec-apply-change` 工作流执行：
 
-1. `openspec instructions apply --change "<slug>" --json`
-2. Read all context files
-3. Implement pending tasks one by one
-4. Mark each task `- [x]` in `tasks.md` immediately after completion
-5. Pause on blockers, scope changes, or unclear requirements
+```bash
+openspec instructions apply --change "<slug>" --json
+```
 
-If implementation reveals a design issue, suggest updating artifacts before continuing.
+执行要求：
 
----
-
-## Step 8: Verify
-
-Run checks appropriate to the Change type:
-
-| Change type | Verification |
-|-------------|-------------|
-| Infrastructure / DB | `npx prisma migrate dev`, `npx prisma generate`, import `lib/db.ts` |
-| UI components | `npm run dev`, visual check at `http://localhost:3000` |
-| API routes | `npm run dev`, manual or scripted endpoint test |
-| All | `npm run lint` |
-
-Report verification results to the user.
+- 先读取所有 context files。
+- 按 `tasks.md` 顺序逐项实现。
+- 每完成一项，立即把 `- [ ]` 改成 `- [x]`。
+- 遇到需求不清、scope 变化、数据库重置、外部服务问题或破坏性操作时暂停询问。
 
 ---
 
-## Step 9: Archive (when all tasks complete)
+## 8. 验证
 
-Follow the **openspec-archive-change** skill:
+根据 Change 类型选择验证方式：
 
-1. Confirm all artifacts and tasks are done
-2. Sync delta specs to `openspec/specs/<capability>/spec.md`
-3. Move change to `openspec/changes/archive/YYYY-MM-DD-<slug>/`
+| Change 类型 | 验证方式 |
+|-------------|----------|
+| 基础设施 / 数据库 | `npx prisma migrate dev`、`npx prisma generate` |
+| UI 组件 | `npm run dev`，并在 `http://localhost:3000` 视觉验收 |
+| API 路由 | 启动 dev server 后测试接口 |
+| 所有 Change | `npm run lint`、`npm run build` |
+
+将验证结果简要报告给用户。
 
 ---
 
-## Step 10: Commit and PR Guidance
+## 9. 手动知识沉淀提示
 
-After implementation and archive, remind the user:
+验证完成且 tasks 全部完成后，归档前必须暂停并提示用户手动触发 `learning-digest` 做本 Change 的知识沉淀。
 
-### Commit
+提醒模板：
+
+```text
+本 Change 的实现和验证已完成。建议先手动触发 learning-digest 沉淀本阶段知识点。
+
+如需沉淀，请回复「复盘一下」或「沉淀知识点」。
+如不需要，请回复「跳过沉淀，继续归档」。
+```
+
+规则：
+
+- 只提示用户手动触发，不自动调用 `learning-digest`。
+- 用户未回复沉淀或明确跳过前，不继续归档。
+- 用户完成沉淀后，再继续执行归档流程。
+
+---
+
+## 10. 归档
+
+所有 tasks 完成后，按 `openspec-archive-change` 工作流归档：
+
+1. 确认 artifacts 完整。
+2. 确认 tasks 全部完成。
+3. 将 delta specs 同步到 `openspec/specs/<capability>/spec.md`。
+4. 将 active change 移动到 `openspec/changes/archive/YYYY-MM-DD-<slug>/`。
+
+---
+
+## 11. 提交和 PR 提示
+
+归档完成后，提醒用户提交：
+
 ```bash
 git status
 git add .
-git commit -m "feat: <brief description in Chinese or English per team convention>"
+git commit -m "feat: <变更说明>"
 ```
 
-Suggested commit prefix:
-- `feat:` — new capability
-- `fix:` — bug fix
-- `chore:` — tooling / config only
+推送：
 
-**Never commit:** `.env`, credentials, generated secrets.
-
-### Push
 ```bash
 git push -u origin feature_<change_slug>_<YYMMDD>
 ```
 
-### Pull Request
+PR 可通过 GitHub 页面创建，或使用：
+
 ```bash
-gh pr create --title "feat: <Change title>" --body "$(cat <<'EOF'
+gh pr create --title "feat: <Change 标题>" --body "$(cat <<'EOF'
 ## Summary
 - ...
 
 ## Test plan
-- [ ] npm run dev
 - [ ] npm run lint
-- [ ] ...
+- [ ] npm run build
+- [ ] npm run dev
 
 EOF
 )"
 ```
 
-Or create the PR manually on GitHub.
+---
+
+## 暂停条件
+
+遇到以下情况必须暂停：
+
+- 前置 Change 未完成
+- `main` 上有未提交改动
+- 用户尚未完成第一次或第二次确认
+- 用户尚未完成或明确跳过知识沉淀提示
+- 实现范围与 roadmap 或 spec 不一致
+- 需要数据库 reset 或其他破坏性操作
+- OpenSpec CLI 不可用
+- 需要用户提供外部服务密钥或配置
 
 ---
 
-## Pause Conditions
+## 输出模板
 
-**STOP and ask the user** when:
+分支创建后：
 
-- Prerequisites are not met (dependency Change incomplete)
-- Uncommitted changes block a clean branch from `main`
-- User has not given Confirmation 1 or Confirmation 2
-- Implementation scope differs from roadmap (suggest artifact update)
-- Database reset or other destructive action is required
-- OpenSpec CLI is unavailable
-
----
-
-## Output Templates
-
-### On branch created (before Confirm 1)
-```
+```text
 已切换到分支 feature_<slug>_<date>。
 以下是 <Change 编号> 的任务摘要，请确认后开始生成 OpenSpec 文档。
 ```
 
-### On specs ready (before Confirm 2)
-```
+spec 完成后：
+
+```text
 OpenSpec 文档已生成（4/4）。请 review 后回复「确认 spec，开始实现」。
 ```
 
-### On completion
-```
+实现完成后：
+
+```text
 Change <slug> 实现完成，已归档。
+已在归档前提示用户手动沉淀知识。
 建议下一步：commit → push → 创建 PR → merge 到 main。
 ```
