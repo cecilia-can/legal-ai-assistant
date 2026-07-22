@@ -2,16 +2,21 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 // Get a free hosted Postgres database in seconds: `npx create-db`
+// 使用 Prisma 的客户端生成器，生成 Prisma Client 的 TypeScript 类型定义
+// 定义表结构、字段类型、关系
 
+// 生成 Prisma Client 的 TypeScript 类型定义
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
 }
 
+// 数据库配置
 datasource db {
   provider = "postgresql"
 }
 
+// 会话模型
 model Conversation {
   id        String    @id @default(cuid())
   title     String    @default("New Chat")
@@ -20,6 +25,7 @@ model Conversation {
   messages  Message[]
 }
 
+// 消息模型
 model Message {
   id             String       @id @default(cuid())
   conversationId String
