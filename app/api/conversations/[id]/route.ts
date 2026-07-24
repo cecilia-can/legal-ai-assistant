@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { jsonError, jsonSuccess } from "@/lib/api/api-response";
 import { serializeConversation } from "@/lib/api/conversation-response";
 import { prisma } from "@/lib/db";
 
@@ -15,15 +15,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     };
 
     if (typeof body.title !== "string" || !body.title.trim()) {
-      return NextResponse.json(
-        { error: "标题不能为空。" },
-        { status: 400 },
-      );
+      return jsonError("标题不能为空。", 400);
     }
 
     const existing = await prisma.conversation.findUnique({ where: { id } });
     if (!existing) {
-      return NextResponse.json({ error: "会话不存在。" }, { status: 404 });
+      return jsonError("会话不存在。", 404);
     }
 
     const conversation = await prisma.conversation.update({
@@ -31,13 +28,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       data: { title: body.title.trim() },
     });
 
-    return NextResponse.json(serializeConversation(conversation));
+    return jsonSuccess(serializeConversation(conversation));
   } catch (error) {
     console.error(`PATCH /api/conversations/${id} failed:`, error);
-    return NextResponse.json(
-      { error: "无法更新会话标题，请稍后重试。" },
-      { status: 500 },
-    );
+    return jsonError("无法更新会话标题，请稍后重试。", 500);
   }
 }
 
@@ -47,17 +41,14 @@ export async function DELETE(_request: Request, context: RouteContext) {
   try {
     const existing = await prisma.conversation.findUnique({ where: { id } });
     if (!existing) {
-      return NextResponse.json({ error: "会话不存在。" }, { status: 404 });
+      return jsonError("会话不存在。", 404);
     }
 
     await prisma.conversation.delete({ where: { id } });
 
-    return NextResponse.json({ ok: true });
+    return jsonSuccess(null);
   } catch (error) {
     console.error(`DELETE /api/conversations/${id} failed:`, error);
-    return NextResponse.json(
-      { error: "无法删除会话，请稍后重试。" },
-      { status: 500 },
-    );
+    return jsonError("无法删除会话，请稍后重试。", 500);
   }
 }

@@ -1,8 +1,4 @@
-## Purpose
-
-Define Zustand-based conversation state management and homepage integration behavior.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 会话 Zustand Store
 系统 SHALL 提供基于 Zustand 的 `conversationStore`（`lib/stores/conversationStore.ts`），用于管理会话列表、当前选中会话、加载态与错误态。
@@ -42,32 +38,3 @@ Store MUST 从 API 响应 envelope 的 `data` 字段读取业务数据，从 `me
 #### Scenario: Selector 精确订阅
 - **WHEN** UI 组件仅订阅 `activeId` 或 `conversations`
 - **THEN** 其他 state 变更不应导致该组件不必要的重渲染（通过 Zustand selector 实现）
-
-### Requirement: 首页接入真实会话数据
-系统 SHALL 在 `app/page.tsx` 使用 `useConversationStore` 驱动会话列表与当前会话，而不是静态 mock 会话数组。
-
-#### Scenario: 页面展示数据库会话
-- **WHEN** 用户打开首页且存在持久化会话
-- **THEN** 侧边栏展示来自 API 的会话列表
-
-#### Scenario: 新建聊天调用 API
-- **WHEN** 用户点击「新建聊天」
-- **THEN** 系统通过 store action 创建新会话并切换为当前会话
-
-### Requirement: 首条消息触发标题自动生成
-系统 SHALL 在用户发送首条本地消息时，若当前会话标题仍为默认值（`新对话` 或 `New Chat`），自动调用 `updateConversationTitle` 更新标题为消息内容摘要（去除首尾空白后截断，例如前 20 字符）。
-
-#### Scenario: 默认标题会话收到首条消息
-- **WHEN** 用户在标题为默认值的会话中发送首条非空消息
-- **THEN** store 调用 PATCH 更新会话标题，且侧边栏展示新标题
-
-#### Scenario: 已有自定义标题时不覆盖
-- **WHEN** 会话标题已不是默认值
-- **THEN** 发送消息不会自动修改标题
-
-### Requirement: 为后续 Phase 预留 store 扩展
-系统 SHALL 将会话状态隔离在 `conversationStore` 中，不与会话消息、流式输出状态混放。
-
-#### Scenario: store 职责边界清晰
-- **WHEN** Change 1.4 需要新增聊天/流式状态
-- **THEN** 可在 `lib/stores/` 下新增独立 store（如 `chatStore`），而无需重构 `conversationStore`
