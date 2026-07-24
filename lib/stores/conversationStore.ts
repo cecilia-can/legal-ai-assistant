@@ -1,7 +1,12 @@
-import { create } from "zustand";
+import {
+  API_SUCCESS_CODE,
+  parseApiResponse,
+  readApiMessage,
+} from "@/lib/api/api-response";
 import type { ConversationJson } from "@/lib/api/conversation-response";
 import { parseConversationJson } from "@/lib/api/conversation-response";
 import type { Conversation } from "@/types/chat";
+import { create } from "zustand";
 
 interface ConversationState {
   conversations: Conversation[];
@@ -30,17 +35,26 @@ function resolveActiveId(
   return conversations[0]?.id ?? null;
 }
 
-async function readErrorMessage(response: Response, fallback: string): Promise<string> {
-  try {
-    const data = (await response.json()) as { error?: unknown };
-    if (typeof data.error === "string" && data.error.trim()) {
-      return data.error;
-    }
-  } catch {
-    // ignore JSON parse errors
+function assertSuccessConversationJson(
+  data: ConversationJson | null,
+  fallback: string,
+): ConversationJson {
+  if (!data || typeof data !== "object") {
+    throw new Error(fallback);
   }
 
-  return fallback;
+  return data;
+}
+
+function assertSuccessConversationList(
+  data: ConversationJson[] | null,
+  fallback: string,
+): ConversationJson[] {
+  if (!Array.isArray(data)) {
+    throw new Error(fallback);
+  }
+
+  return data;
 }
 
 function removeConversationFromState(
@@ -74,14 +88,18 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
     try {
       const response = await fetch("/api/conversations");
-      if (!response.ok) {
+      const payload = await parseApiResponse<ConversationJson[]>(response);
+
+      if (!response.ok || payload.code !== API_SUCCESS_CODE) {
         throw new Error(
-          await readErrorMessage(response, "无法加载会话列表，请稍后重试。"),
+          readApiMessage(payload, "无法加载会话列表，请稍后重试。"),
         );
       }
 
-      const data = (await response.json()) as ConversationJson[];
-      const conversations = data.map(parseConversationJson);
+      const conversations = assertSuccessConversationList(
+        payload.data,
+        "无法加载会话列表，请稍后重试。",
+      ).map(parseConversationJson);
 
       set((state) => ({
         conversations,
@@ -109,15 +127,19 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
+      const payload = await parseApiResponse<ConversationJson>(response);
 
-      if (!response.ok) {
+      if (!response.ok || payload.code !== API_SUCCESS_CODE) {
         throw new Error(
-          await readErrorMessage(response, "无法创建会话，请稍后重试。"),
+          readApiMessage(payload, "无法创建会话，请稍后重试。"),
         );
       }
 
       const conversation = parseConversationJson(
-        (await response.json()) as ConversationJson,
+        assertSuccessConversationJson(
+          payload.data,
+          "无法创建会话，请稍后重试。",
+        ),
       );
 
       set((state) => ({
@@ -156,19 +178,24 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       const response = await fetch(`/api/conversations/${id}`, {
         method: "DELETE",
       });
+      const payload = await parseApiResponse<null>(response);
 
-      if (!response.ok) {
+      if (!response.ok || payload.code !== API_SUCCESS_CODE) {
         if (response.status === 404) {
-          set((state) => removeConversationFromState(state.conversations, id, state.activeId));
+          set((state) =>
+            removeConversationFromState(state.conversations, id, state.activeId),
+          );
           return;
         }
 
         throw new Error(
-          await readErrorMessage(response, "无法删除会话，请稍后重试。"),
+          readApiMessage(payload, "无法删除会话，请稍后重试。"),
         );
       }
 
-      set((state) => removeConversationFromState(state.conversations, id, state.activeId));
+      set((state) =>
+        removeConversationFromState(state.conversations, id, state.activeId),
+      );
     } catch (error) {
       set({
         error:
@@ -195,15 +222,19 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: trimmedTitle }),
       });
+      const payload = await parseApiResponse<ConversationJson>(response);
 
-      if (!response.ok) {
+      if (!response.ok || payload.code !== API_SUCCESS_CODE) {
         throw new Error(
-          await readErrorMessage(response, "无法更新会话标题，请稍后重试。"),
+          readApiMessage(payload, "无法更新会话标题，请稍后重试。"),
         );
       }
 
       const updated = parseConversationJson(
-        (await response.json()) as ConversationJson,
+        assertSuccessConversationJson(
+          payload.data,
+          "无法更新会话标题，请稍后重试。",
+        ),
       );
 
       set((state) => ({

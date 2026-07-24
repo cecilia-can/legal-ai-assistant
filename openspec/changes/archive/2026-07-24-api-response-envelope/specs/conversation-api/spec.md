@@ -1,8 +1,4 @@
-## Purpose
-
-Define REST API behavior for conversation CRUD operations and error handling.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 查询会话列表 API
 系统 SHALL 提供 `GET /api/conversations` 接口，返回当前数据库中所有会话。
