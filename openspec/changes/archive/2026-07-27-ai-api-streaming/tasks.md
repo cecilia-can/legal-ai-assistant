@@ -46,8 +46,8 @@
 
 - [x] 7.1 运行 `npm run lint`。
 - [x] 7.2 运行 `npm run build`。
-- [ ] 7.3 配置 DeepSeek Key 后联调：SSE token 事件、done 事件、打字机效果、多轮上下文。
-- [ ] 7.4 验证切换会话 / 新建聊天 / 重复发送时的 abort 行为。
-- [ ] 7.5 验证 API Key 缺失或无效时的 JSON 错误（流开始前）。
-- [ ] 7.6 在 DevTools Network 中确认响应为 `text/event-stream` 且 `data:` 行格式正确。
-- [ ] 7.7 验证智能滚动：底部附近流式跟随；向上阅读时不打断；「回到底部」按钮；发送消息后强制到底。
+- [x] 7.3 配置 DeepSeek Key 后联调：SSE token 事件、done 事件、打字机效果、多轮上下文。
+- [x] 7.4 验证切换会话 / 新建聊天 / 重复发送时的 abort 行为。
+- [x] 7.5 验证 API Key 缺失或无效时的 JSON 错误（流开始前）。
+- [x] 7.6 在 DevTools Network 中确认响应为 `text/event-stream` 且 `data:` 行格式正确。
+- [x] 7.7 验证智能滚动：底部附近流式跟随；向上阅读时不打断；「回到底部」按钮；发送消息后强制到底。
