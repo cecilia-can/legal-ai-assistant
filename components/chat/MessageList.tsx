@@ -1,12 +1,126 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types/chat";
+import { ArrowDown } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import { IconButton } from "@/components/ui/IconButton";
+
+/** 距底部多少 px 内视为「在底部附近」，与 ChatGPT 类似 */
+const NEAR_BOTTOM_THRESHOLD_PX = 80;
 
 interface MessageListProps {
   messages: ChatMessage[];
+  /** 流式生成中：在底部附近时用 instant 滚动跟随 token */
+  isStreaming?: boolean;
+  /** 用户发送消息后递增，强制滚到底部并恢复 stick-to-bottom */
+  scrollToBottomNonce?: number;
 }
 
-export function MessageList({ messages }: MessageListProps) {
+function isNearBottom(element: HTMLElement): boolean {
+  const distance =
+    element.scrollHeight - element.scrollTop - element.clientHeight;
+  return distance <= NEAR_BOTTOM_THRESHOLD_PX;
+}
+
+export function MessageList({
+  messages,
+  isStreaming = false,
+  scrollToBottomNonce = 0,
+}: MessageListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
+  const scrollRafRef = useRef<number | null>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+  const lastMessage = messages[messages.length - 1];
+  const contentScrollTrigger = `${messages.length}:${lastMessage?.content.length ?? 0}`;
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
+    const element = scrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    element.scrollTo({
+      top: element.scrollHeight,
+      behavior,
+    });
+  }, []);
+
+  /** 流式期间每帧最多滚一次，避免每个 token 都触发布局重算 */
+  const scrollToBottomOnFrame = useCallback(
+    (behavior: ScrollBehavior) => {
+      if (scrollRafRef.current !== null) {
+        return;
+      }
+
+      scrollRafRef.current = requestAnimationFrame(() => {
+        scrollRafRef.current = null;
+        scrollToBottom(behavior);
+      });
+    },
+    [scrollToBottom],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const near = isNearBottom(element);
+    isNearBottomRef.current = near;
+    setShowScrollToBottom(!near && messages.length > 0);
+  }, [messages.length]);
+
+  const handleScrollToBottomClick = useCallback(() => {
+    isNearBottomRef.current = true;
+    setShowScrollToBottom(false);
+    scrollToBottom("smooth");
+  }, [scrollToBottom]);
+
+  useEffect(() => {
+    scrollToBottom("auto");
+  }, [scrollToBottom]);
+
+  useEffect(() => {
+    if (scrollToBottomNonce <= 0) {
+      return;
+    }
+
+    isNearBottomRef.current = true;
+    scrollToBottom(isStreaming ? "auto" : "smooth");
+  }, [scrollToBottomNonce, isStreaming, scrollToBottom]);
+
+  useEffect(() => {
+    if (messages.length === 0 || !isNearBottomRef.current) {
+      return;
+    }
+
+    if (isStreaming) {
+      scrollToBottomOnFrame("auto");
+      return;
+    }
+
+    scrollToBottom("smooth");
+  }, [
+    contentScrollTrigger,
+    isStreaming,
+    messages.length,
+    scrollToBottom,
+    scrollToBottomOnFrame,
+  ]);
+
   if (messages.length === 0) {
     return (
       <EmptyState
@@ -17,10 +131,28 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {messages.map((message) => (
-        <MessageBubble key={message.id} message={message} />
-      ))}
+    <div className="relative h-full min-h-0">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="h-full overflow-y-auto px-4 py-4 md:px-6"
+      >
+        <div className="flex flex-col gap-4">
+          {messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))}
+        </div>
+      </div>
+      {showScrollToBottom ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center">
+          <IconButton
+            icon={ArrowDown}
+            label="回到底部"
+            className="pointer-events-auto rounded-full shadow-md"
+            onClick={handleScrollToBottomClick}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

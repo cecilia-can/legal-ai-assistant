@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { PanelLeftClose, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 
 interface SidebarProps {
   children: ReactNode;
@@ -18,25 +20,18 @@ export function Sidebar({ children, onNewChat, onClose, onCollapse }: SidebarPro
             <p className="mt-1 text-xs text-muted">Legal AI Assistant</p>
           </div>
           {onClose ? (
-            <Button
-              type="button"
-              variant="secondary"
-              className="shrink-0 px-3 py-2"
+            <IconButton
+              icon={X}
+              label="关闭会话列表"
               onClick={onClose}
-              aria-label="关闭会话列表"
-            >
-              关闭
-            </Button>
+            />
           ) : onCollapse ? (
-            <Button
-              type="button"
-              variant="secondary"
-              className="hidden shrink-0 px-3 py-2 md:inline-flex"
+            <IconButton
+              icon={PanelLeftClose}
+              label="收起侧栏"
+              className="hidden md:inline-flex"
               onClick={onCollapse}
-              aria-label="收起侧栏"
-            >
-              收起
-            </Button>
+            />
           ) : null}
         </div>
         <div className="mt-4">
