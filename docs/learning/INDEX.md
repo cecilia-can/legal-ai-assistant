@@ -11,12 +11,17 @@
 |--------|------|----------|----------|
 | 1.2 UI 基础组件库 | [1.2-ui-components.md](./1.2-ui-components.md) | 10 | 2026-07-15 |
 | 1.3 会话管理功能 | [1.3-conversation-management.md](./1.3-conversation-management.md) | 8 | 2026-07-22 |
+| 1.4 AI API 集成与流式输出 | [1.4-ai-api-streaming.md](./1.4-ai-api-streaming.md) | 9 | 2026-07-26 |
+| 1.4 聊天列表滚动与回到底部 | [1.4面试文档/1.4-chat-scroll-ux.md](./1.4面试文档/1.4-chat-scroll-ux.md) | — | 2026-07-26 |
+| 1.4 流式观感与展示队列 | [1.4面试文档/1.4-streaming-typewriter-ux.md](./1.4面试文档/1.4-streaming-typewriter-ux.md) | — | 2026-07-27 |
+| 1.4 面试追问与解答思路 | [1.4面试文档/1.4-interview-followup.md](./1.4面试文档/1.4-interview-followup.md) | — | 2026-07-26 |
 
 ### 通用参考（跨 Change）
 
 | 主题 | 文件 | 说明 | 最近更新 |
 |------|------|------|----------|
 | 传统后端概念 × 本项目 | [general-backend-concepts.md](./general-backend-concepts.md) | 高并发、熔断、限流等与 roadmap 的对应关系 | 2026-07-17 |
+| AI 流式输出方案对比与选型 | [general-streaming-protocols.md](./general-streaming-protocols.md) | Plain text / SSE / WebSocket、EventSource、主流实践、面试追问 | 2026-07-25 |
 
 ## 使用说明
 

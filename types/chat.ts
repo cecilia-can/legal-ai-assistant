@@ -13,3 +13,50 @@ export interface Conversation {
   createdAt: Date;
   updatedAt: Date;
 }
+
+/** Messages sent to POST /api/chat (no id / createdAt). */
+export type ChatApiMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type ChatStreamTokenEvent = {
+  type: "token";
+  text: string;
+};
+
+export type ChatStreamDoneEvent = {
+  type: "done";
+};
+
+export type ChatStreamErrorEvent = {
+  type: "error";
+  message: string;
+};
+
+export type ChatStreamEvent =
+  | ChatStreamTokenEvent
+  | ChatStreamDoneEvent
+  | ChatStreamErrorEvent;
+
+export function isChatStreamEvent(value: unknown): value is ChatStreamEvent {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  if (record.type === "token") {
+    return typeof record.text === "string";
+  }
+
+  if (record.type === "done") {
+    return true;
+  }
+
+  if (record.type === "error") {
+    return typeof record.message === "string";
+  }
+
+  return false;
+}

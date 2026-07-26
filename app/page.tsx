@@ -16,15 +16,18 @@ import {
   getActiveConversation,
   useConversationStore,
 } from "@/lib/stores/conversationStore";
-import type { ChatMessage } from "@/types/chat";
+import {
+  getConversationMessages,
+  useChatStore,
+} from "@/lib/stores/chatStore";
 
 export default function HomePage() {
   const conversations = useConversationStore((state) => state.conversations);
   const activeId = useConversationStore((state) => state.activeId);
   const isLoading = useConversationStore((state) => state.isLoading);
   const deletingId = useConversationStore((state) => state.deletingId);
-  const error = useConversationStore((state) => state.error);
-  
+  const conversationError = useConversationStore((state) => state.error);
+
   const fetchConversations = useConversationStore(
     (state) => state.fetchConversations,
   );
@@ -41,29 +44,50 @@ export default function HomePage() {
     (state) => state.updateConversationTitle,
   );
 
-  const [messagesByConversation, setMessagesByConversation] = useState<
-    Record<string, ChatMessage[]>
-  >({});
+  const messagesByConversation = useChatStore(
+    (state) => state.messagesByConversation,
+  );
+  const streamingConversationId = useChatStore(
+    (state) => state.streamingConversationId,
+  );
+  const chatError = useChatStore((state) => state.error);
+  const sendMessage = useChatStore((state) => state.sendMessage);
+  const abortStream = useChatStore((state) => state.abortStream);
+  const clearConversationMessages = useChatStore(
+    (state) => state.clearConversationMessages,
+  );
+  const clearChatError = useChatStore((state) => state.clearError);
+
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
     title: string;
   } | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
+  const [scrollToBottomNonce, setScrollToBottomNonce] = useState(0);
 
   const activeConversation = getActiveConversation(conversations, activeId);
-  const activeMessages = activeId ? (messagesByConversation[activeId] ?? []) : [];
+  const activeMessages = getConversationMessages(
+    messagesByConversation,
+    activeId,
+  );
+  const isStreaming = streamingConversationId === activeId;
+  const sidebarError = conversationError ?? chatError;
 
   useEffect(() => {
     void fetchConversations();
   }, [fetchConversations]);
 
   async function handleNewChat() {
+    abortStream();
+    clearChatError();
     await createConversation();
     setMobileSidebarOpen(false);
   }
 
   function handleSelectConversation(id: string) {
+    abortStream();
+    clearChatError();
     selectConversation(id);
     setMobileSidebarOpen(false);
   }
@@ -95,36 +119,27 @@ export default function HomePage() {
     }
 
     const { id } = pendingDelete;
-    await deleteConversation(id);
 
-    setMessagesByConversation((current) => {
-      const next = { ...current };
-      delete next[id];
-      return next;
-    });
+    if (activeId === id) {
+      abortStream();
+    }
+
+    await deleteConversation(id);
+    clearConversationMessages(id);
     setPendingDelete(null);
   }
 
   function handleSubmitMessage(content: string) {
-    if (!activeId) {
+    if (!activeId || isStreaming) {
       return;
     }
-
-    const now = new Date();
-    const userMessage: ChatMessage = {
-      id: `msg-${now.getTime()}`,
-      role: "user",
-      content,
-      createdAt: now,
-    };
 
     const existingMessages = messagesByConversation[activeId] ?? [];
     const isFirstMessage = existingMessages.length === 0;
 
-    setMessagesByConversation((current) => ({
-      ...current,
-      [activeId]: [...(current[activeId] ?? []), userMessage],
-    }));
+    clearChatError();
+    setScrollToBottomNonce((n) => n + 1);
+    void sendMessage(activeId, content);
 
     if (
       isFirstMessage &&
@@ -147,9 +162,9 @@ export default function HomePage() {
   }) {
     return (
       <Sidebar onNewChat={handleNewChat} onClose={onClose} onCollapse={onCollapse}>
-        {error ? (
+        {sidebarError ? (
           <p className="border-b border-border px-4 py-3 text-sm text-destructive">
-            {error}
+            {sidebarError}
           </p>
         ) : null}
         {isLoading ? (
@@ -197,14 +212,23 @@ export default function HomePage() {
             title={activeConversation?.title ?? "法律 AI 助手"}
             subtitle={
               activeId
-                ? "本界面为静态演示，尚未接入 AI 回复"
+                ? isStreaming
+                  ? "AI 正在回复…"
+                  : "输入法律问题，AI 将流式回复（刷新后消息不保留）"
                 : "创建或选择一个会话开始对话"
             }
-            messages={<MessageList messages={activeMessages} />}
+            messages={
+              <MessageList
+                key={activeId ?? "none"}
+                messages={activeMessages}
+                isStreaming={isStreaming}
+                scrollToBottomNonce={scrollToBottomNonce}
+              />
+            }
             input={
               <ChatInput
                 onSubmit={handleSubmitMessage}
-                disabled={!activeId || isLoading}
+                disabled={!activeId || isLoading || isStreaming}
               />
             }
             onOpenSidebar={() => setMobileSidebarOpen(true)}
