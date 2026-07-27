@@ -1,11 +1,22 @@
 /**
  * 聊天消息客户端状态：按会话存储消息、发起流式 AI 请求、处理 SSE 增量更新。
- * 消息仅存内存，刷新页面会丢失；会话元数据由 conversationStore 管理。
+ * 流式结束后（done 或 abort 且有内容）经消息 API 持久化；切换会话时可从 DB 加载历史。
  */
+import {
+  API_SUCCESS_CODE,
+  isApiResponse,
+  parseApiResponse,
+  readApiMessage,
+} from "@/lib/api/api-response";
 import { consumeSseStream } from "@/lib/api/sse";
-import { isApiResponse, readApiMessage } from "@/lib/api/api-response";
 import { createDisplayQueue } from "@/lib/streaming/displayQueue";
-import type { ChatApiMessage, ChatMessage } from "@/types/chat";
+import type {
+  ChatApiMessage,
+  ChatMessage,
+  MessageJson,
+  MessageListData,
+  MessageRole,
+} from "@/types/chat";
 import { create } from "zustand";
 
 interface ChatState {
@@ -13,28 +24,26 @@ interface ChatState {
   messagesByConversation: Record<string, ChatMessage[]>;
   /** 当前正在接收 SSE 的会话 ID，null 表示空闲 */
   streamingConversationId: string | null;
+  /** 正在从 API 加载历史的会话 ID */
+  loadingConversationId: string | null;
+  /** 正在删除的消息 ID */
+  deletingMessageId: string | null;
   error: string | null;
-  /** 向指定会话发送用户消息，经 SSE 流式接收 AI 回复并更新 UI */
+  loadMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, content: string) => Promise<void>;
-  /** 中断当前进行中的流式请求（fetch + SSE 读取） */
   abortStream: () => void;
-  /** 清除指定会话在内存中的消息缓存（如删除会话时调用） */
+  deleteMessage: (
+    conversationId: string,
+    messageId: string,
+  ) => Promise<void>;
   clearConversationMessages: (conversationId: string) => void;
-  /** 清除最近一次聊天错误提示 */
   clearError: () => void;
 }
 
-/**
- * 进行中的 fetch / SSE 控制柄，放在 store 外以避免无意义的重渲染。
- * 同一时刻只允许一条活跃流。
- */
 let abortController: AbortController | null = null;
-/** 与 abortController 配对，用于丢弃切换会话后迟到的 token 事件 */
 let activeStreamConversationId: string | null = null;
-/** 进行中的展示队列，abort 时需 cancel */
 let activeDisplayQueue: ReturnType<typeof createDisplayQueue> | null = null;
 
-/** 将 UI 消息转为 POST /api/chat 所需格式（去掉 id、createdAt，过滤非 user/assistant 角色） */
 function toApiMessages(messages: ChatMessage[]): ChatApiMessage[] {
   return messages
     .filter((message) => message.role === "user" || message.role === "assistant")
@@ -46,6 +55,20 @@ function toApiMessages(messages: ChatMessage[]): ChatApiMessage[] {
 
 function createMessageId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function toChatMessage(raw: MessageJson): ChatMessage {
+  const role: MessageRole =
+    raw.role === "user" || raw.role === "assistant" || raw.role === "system"
+      ? raw.role
+      : "assistant";
+
+  return {
+    id: raw.id,
+    role,
+    content: raw.content,
+    createdAt: new Date(raw.createdAt),
+  };
 }
 
 function appendAssistantChunk(
@@ -96,18 +119,182 @@ function clearStreamingIfMatch(
   );
 }
 
-/** 聊天 Zustand store：消息按会话分桶，同一时刻仅允许一条活跃 SSE 流 */
+async function postPersistedRound(
+  conversationId: string,
+  userContent: string,
+  assistantContent: string,
+): Promise<{ user: MessageJson; assistant: MessageJson }> {
+  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [
+        { role: "user", content: userContent },
+        { role: "assistant", content: assistantContent },
+      ],
+    }),
+  });
+
+  const payload = await parseApiResponse<{ items: MessageJson[] }>(response);
+
+  if (!response.ok || payload.code !== API_SUCCESS_CODE || !payload.data?.items) {
+    throw new Error(readApiMessage(payload, "保存消息失败，请稍后重试。"));
+  }
+
+  const [user, assistant] = payload.data.items;
+  if (!user || !assistant) {
+    throw new Error("保存消息失败：返回数据不完整。");
+  }
+
+  return { user, assistant };
+}
+
+/**
+ * 方案 B：assistant 非空则事务落库 user + assistant 并替换临时 id；
+ * assistant 为空则仅移除空占位，不落库。
+ * 使用网络侧已收到的完整文本，不等待打字机队列排空，避免刷新只留下 user。
+ */
+async function finalizeRound(
+  set: (
+    partial:
+      | ChatState
+      | Partial<ChatState>
+      | ((state: ChatState) => ChatState | Partial<ChatState>),
+  ) => void,
+  conversationId: string,
+  userTempId: string,
+  assistantTempId: string,
+  userContent: string,
+  assistantContent: string,
+) {
+  if (!assistantContent.trim()) {
+    set((state) => {
+      const current = state.messagesByConversation[conversationId] ?? [];
+      return {
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: current.filter(
+            (message) => message.id !== assistantTempId,
+          ),
+        },
+      };
+    });
+    return;
+  }
+
+  // 先把内存里的 assistant 同步为完整网络文本，再落库
+  set((state) => {
+    const current = state.messagesByConversation[conversationId] ?? [];
+    return {
+      messagesByConversation: {
+        ...state.messagesByConversation,
+        [conversationId]: current.map((message) => {
+          if (message.id === userTempId) {
+            return { ...message, content: userContent };
+          }
+
+          if (message.id === assistantTempId) {
+            return { ...message, content: assistantContent };
+          }
+
+          return message;
+        }),
+      },
+    };
+  });
+
+  try {
+    const persisted = await postPersistedRound(
+      conversationId,
+      userContent,
+      assistantContent,
+    );
+
+    set((state) => {
+      const current = state.messagesByConversation[conversationId] ?? [];
+      const updated = current.map((message) => {
+        if (message.id === userTempId) {
+          return toChatMessage(persisted.user);
+        }
+
+        if (message.id === assistantTempId) {
+          return toChatMessage(persisted.assistant);
+        }
+
+        return message;
+      });
+
+      return {
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: updated,
+        },
+      };
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "保存消息失败，请稍后重试。";
+    set({ error: message });
+  }
+}
+
 export const useChatStore = create<ChatState>((set, get) => ({
   messagesByConversation: {},
   streamingConversationId: null,
+  loadingConversationId: null,
+  deletingMessageId: null,
   error: null,
 
-  /**
-   * 发送一条用户消息并流式获取 AI 回复。
-   *
-   * 流程：中断旧流 → 乐观插入 user + 空 assistant → POST /api/chat
-   * → SSE token 写入展示队列 → 按节奏 reveal 到 UI → 队列排空后结束 streaming。
-   */
+  loadMessages: async (conversationId) => {
+    if (Object.hasOwn(get().messagesByConversation, conversationId)) {
+      return;
+    }
+
+    if (get().loadingConversationId === conversationId) {
+      return;
+    }
+
+    set({ loadingConversationId: conversationId, error: null });
+
+    try {
+      const response = await fetch(
+        `/api/conversations/${conversationId}/messages`,
+      );
+      const payload = await parseApiResponse<MessageListData>(response);
+
+      if (!response.ok || payload.code !== API_SUCCESS_CODE || !payload.data) {
+        throw new Error(readApiMessage(payload, "加载消息失败，请稍后重试。"));
+      }
+
+      const items = payload.data.items.map(toChatMessage);
+
+      set((state) => {
+        if (Object.hasOwn(state.messagesByConversation, conversationId)) {
+          return { loadingConversationId: null };
+        }
+
+        return {
+          messagesByConversation: {
+            ...state.messagesByConversation,
+            [conversationId]: items,
+          },
+          loadingConversationId: null,
+        };
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "加载消息失败，请稍后重试。";
+
+      set((state) => ({
+        error: message,
+        loadingConversationId:
+          state.loadingConversationId === conversationId
+            ? null
+            : state.loadingConversationId,
+      }));
+    }
+  },
+
   sendMessage: async (conversationId, content) => {
     const trimmed = content.trim();
     if (!trimmed) {
@@ -146,6 +333,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const controller = new AbortController();
     abortController = controller;
     activeStreamConversationId = conversationId;
+
+    /** 网络侧已收到的完整 assistant 文本（不受打字机延迟影响） */
+    let networkAssistantText = "";
 
     const displayQueue = createDisplayQueue(
       (chunk) => {
@@ -204,6 +394,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
 
           if (event.type === "token") {
+            networkAssistantText += event.text;
             displayQueue.enqueue(event.text);
             return;
           }
@@ -217,12 +408,40 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       if (!controller.signal.aborted) {
         displayQueue.markNetworkDone();
+        // 立即按网络完整文本落库，不等打字机排空（避免刷新只留下 user）
+        await finalizeRound(
+          set,
+          conversationId,
+          userMessage.id,
+          assistantMessage.id,
+          trimmed,
+          networkAssistantText,
+        );
         await displayQueue.waitUntilIdle();
       } else {
+        displayQueue.flushSync();
         displayQueue.cancel();
+        await finalizeRound(
+          set,
+          conversationId,
+          userMessage.id,
+          assistantMessage.id,
+          trimmed,
+          networkAssistantText,
+        );
       }
     } catch (error) {
       if (controller.signal.aborted) {
+        displayQueue.flushSync();
+        displayQueue.cancel();
+        await finalizeRound(
+          set,
+          conversationId,
+          userMessage.id,
+          assistantMessage.id,
+          trimmed,
+          networkAssistantText,
+        );
         return;
       }
 
@@ -233,10 +452,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set((state) => {
         const messages = state.messagesByConversation[conversationId] ?? [];
         const withoutEmptyAssistant = messages.filter(
-          (message) =>
-            !(
-              message.id === assistantMessage.id && message.content.length === 0
-            ),
+          (item) =>
+            !(item.id === assistantMessage.id && item.content.length === 0),
         );
 
         return {
@@ -269,10 +486,71 @@ export const useChatStore = create<ChatState>((set, get) => ({
       abortController = null;
     }
 
+    // 先冲刷展示队列，避免 abort 丢掉已收到但未上屏的 token（方案 B 需落库半截）
+    activeDisplayQueue?.flushSync();
     activeDisplayQueue?.cancel();
     activeDisplayQueue = null;
     activeStreamConversationId = null;
     set({ streamingConversationId: null });
+  },
+
+  deleteMessage: async (conversationId, messageId) => {
+    if (get().deletingMessageId) {
+      return;
+    }
+
+    const previous = get().messagesByConversation[conversationId] ?? [];
+    const targetIndex = previous.findIndex(
+      (message) => message.id === messageId,
+    );
+    if (targetIndex < 0) {
+      return;
+    }
+
+    const target = previous[targetIndex];
+
+    // 乐观更新：先从 UI 移除，失败再回滚（减轻 Neon 远程延迟体感）
+    set({
+      deletingMessageId: messageId,
+      error: null,
+      messagesByConversation: {
+        ...get().messagesByConversation,
+        [conversationId]: previous.filter(
+          (message) => message.id !== messageId,
+        ),
+      },
+    });
+
+    try {
+      const response = await fetch(
+        `/api/conversations/${conversationId}/messages/${messageId}`,
+        { method: "DELETE" },
+      );
+      const payload = await parseApiResponse<null>(response);
+
+      if (!response.ok || payload.code !== API_SUCCESS_CODE) {
+        throw new Error(readApiMessage(payload, "删除消息失败，请稍后重试。"));
+      }
+
+      set({ deletingMessageId: null });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "删除消息失败，请稍后重试。";
+      set((state) => {
+        const current = state.messagesByConversation[conversationId] ?? [];
+        const restored = [...current];
+        restored.splice(Math.min(targetIndex, restored.length), 0, target);
+
+        return {
+          error: message,
+          deletingMessageId: null,
+          messagesByConversation: {
+            ...state.messagesByConversation,
+            [conversationId]: restored,
+          },
+        };
+      });
+    }
   },
 
   clearConversationMessages: (conversationId) => {

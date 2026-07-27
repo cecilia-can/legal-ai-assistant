@@ -45,9 +45,12 @@ Route Handler SHALL NOT 缓冲完整回复后再返回；MUST 增量写入 `Read
 - **WHEN** 上游 stream 正常结束
 - **THEN** 客户端收到 `done` 事件后流关闭
 
-### Requirement: 服务端不持久化消息
-`POST /api/chat` SHALL NOT 在本阶段写入数据库。
+### Requirement: 聊天 API 与消息持久化职责分离
+`POST /api/chat` SHALL 继续仅负责校验 messages、调用模型并以 SSE 推送 `token` / `done` 事件。
 
-#### Scenario: 聊天不触发数据库写入
-- **WHEN** 用户通过 `/api/chat` 完成一次对话
-- **THEN** Message 表无新增记录（持久化留待 Change 1.5）
+- 该 Handler MUST NOT 直接写入 `Message` 表。
+- 消息持久化 MUST 通过会话消息 API（或由其背后的 `messageService`）完成。
+
+#### Scenario: 流式聊天本身不写库
+- **WHEN** 客户端仅调用 `POST /api/chat` 完成一轮 SSE 且未调用消息创建 API
+- **THEN** `Message` 表不因该次 `/api/chat` 调用而新增记录

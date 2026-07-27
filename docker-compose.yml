@@ -1,0 +1,28 @@
+# 本地开发数据库：Postgres + pgvector
+# 使用 pgvector 镜像，Phase 2（向量检索）无需再更换环境。
+#
+#   npm run db:up      启动
+#   npm run db:down    停止（保留数据）
+#   npm run db:reset   停止并删除数据卷
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: legal-ai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: legal_ai_assistant
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d legal_ai_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

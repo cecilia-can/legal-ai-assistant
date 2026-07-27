@@ -7,7 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v",
+    "measure:latency": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-api-latency.ps1"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
