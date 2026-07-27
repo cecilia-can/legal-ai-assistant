@@ -50,17 +50,27 @@ export default function HomePage() {
   const streamingConversationId = useChatStore(
     (state) => state.streamingConversationId,
   );
+  const loadingConversationId = useChatStore(
+    (state) => state.loadingConversationId,
+  );
+  const deletingMessageId = useChatStore((state) => state.deletingMessageId);
   const chatError = useChatStore((state) => state.error);
+  const loadMessages = useChatStore((state) => state.loadMessages);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const abortStream = useChatStore((state) => state.abortStream);
+  const deleteMessage = useChatStore((state) => state.deleteMessage);
   const clearConversationMessages = useChatStore(
     (state) => state.clearConversationMessages,
   );
   const clearChatError = useChatStore((state) => state.clearError);
 
-  const [pendingDelete, setPendingDelete] = useState<{
+  const [pendingDeleteConversation, setPendingDeleteConversation] = useState<{
     id: string;
     title: string;
+  } | null>(null);
+  const [pendingDeleteMessage, setPendingDeleteMessage] = useState<{
+    id: string;
+    preview: string;
   } | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
@@ -72,11 +82,20 @@ export default function HomePage() {
     activeId,
   );
   const isStreaming = streamingConversationId === activeId;
+  const isMessagesLoading = loadingConversationId === activeId;
   const sidebarError = conversationError ?? chatError;
 
   useEffect(() => {
     void fetchConversations();
   }, [fetchConversations]);
+
+  useEffect(() => {
+    if (!activeId) {
+      return;
+    }
+
+    void loadMessages(activeId);
+  }, [activeId, loadMessages]);
 
   async function handleNewChat() {
     abortStream();
@@ -93,7 +112,7 @@ export default function HomePage() {
   }
 
   function handleDeleteRequest(id: string) {
-    if (pendingDelete || deletingId) {
+    if (pendingDeleteConversation || pendingDeleteMessage || deletingId) {
       return;
     }
 
@@ -102,23 +121,23 @@ export default function HomePage() {
       return;
     }
 
-    setPendingDelete({ id, title: conversation.title });
+    setPendingDeleteConversation({ id, title: conversation.title });
   }
 
-  function handleCancelDelete() {
+  function handleCancelDeleteConversation() {
     if (deletingId) {
       return;
     }
 
-    setPendingDelete(null);
+    setPendingDeleteConversation(null);
   }
 
-  async function handleConfirmDelete() {
-    if (!pendingDelete || deletingId) {
+  async function handleConfirmDeleteConversation() {
+    if (!pendingDeleteConversation || deletingId) {
       return;
     }
 
-    const { id } = pendingDelete;
+    const { id } = pendingDeleteConversation;
 
     if (activeId === id) {
       abortStream();
@@ -126,7 +145,49 @@ export default function HomePage() {
 
     await deleteConversation(id);
     clearConversationMessages(id);
-    setPendingDelete(null);
+    setPendingDeleteConversation(null);
+  }
+
+  function handleDeleteMessageRequest(messageId: string) {
+    if (
+      !activeId ||
+      pendingDeleteConversation ||
+      pendingDeleteMessage ||
+      deletingMessageId ||
+      isStreaming
+    ) {
+      return;
+    }
+
+    const message = activeMessages.find((item) => item.id === messageId);
+    if (!message) {
+      return;
+    }
+
+    const preview =
+      message.content.trim().slice(0, 40) +
+      (message.content.trim().length > 40 ? "…" : "");
+
+    setPendingDeleteMessage({ id: messageId, preview });
+  }
+
+  function handleCancelDeleteMessage() {
+    if (deletingMessageId) {
+      return;
+    }
+
+    setPendingDeleteMessage(null);
+  }
+
+  async function handleConfirmDeleteMessage() {
+    if (!activeId || !pendingDeleteMessage || deletingMessageId) {
+      return;
+    }
+
+    const { id } = pendingDeleteMessage;
+    // 先关弹框：列表已乐观移除，不必等 Neon DELETE 返回才关
+    setPendingDeleteMessage(null);
+    await deleteMessage(activeId, id);
   }
 
   function handleSubmitMessage(content: string) {
@@ -175,7 +236,10 @@ export default function HomePage() {
             activeId={activeId ?? undefined}
             onSelect={handleSelectConversation}
             onDelete={handleDeleteRequest}
-            deleteDisabled={pendingDelete !== null}
+            deleteDisabled={
+              pendingDeleteConversation !== null ||
+              pendingDeleteMessage !== null
+            }
             deletingId={deletingId}
           />
         )}
@@ -186,20 +250,42 @@ export default function HomePage() {
   return (
     <>
       <ConfirmDialog
-        open={pendingDelete !== null}
+        open={pendingDeleteConversation !== null}
         title="删除会话？"
         description={
-          pendingDelete
-            ? `「${pendingDelete.title}」将被永久删除，此操作无法撤销。`
+          pendingDeleteConversation
+            ? `「${pendingDeleteConversation.title}」将被永久删除，此操作无法撤销。`
             : ""
         }
         confirmLabel="确定删除"
         cancelLabel="取消"
         isConfirming={
-          pendingDelete !== null && deletingId === pendingDelete.id
+          pendingDeleteConversation !== null &&
+          deletingId === pendingDeleteConversation.id
         }
-        onConfirm={() => void handleConfirmDelete()}
-        onCancel={handleCancelDelete}
+        onConfirm={() => void handleConfirmDeleteConversation()}
+        onCancel={handleCancelDeleteConversation}
+      />
+      <ConfirmDialog
+        open={pendingDeleteMessage !== null}
+        title="删除消息？"
+        description={
+          pendingDeleteMessage
+            ? `将永久删除该消息${
+                pendingDeleteMessage.preview
+                  ? `：「${pendingDeleteMessage.preview}」`
+                  : ""
+              }，此操作无法撤销。`
+            : ""
+        }
+        confirmLabel="确定删除"
+        cancelLabel="取消"
+        isConfirming={
+          pendingDeleteMessage !== null &&
+          deletingMessageId === pendingDeleteMessage.id
+        }
+        onConfirm={() => void handleConfirmDeleteMessage()}
+        onCancel={handleCancelDeleteMessage}
       />
       <AppShell
         mobileSidebarOpen={mobileSidebarOpen}
@@ -214,7 +300,7 @@ export default function HomePage() {
               activeId
                 ? isStreaming
                   ? "AI 正在回复…"
-                  : "输入法律问题，AI 将流式回复（刷新后消息不保留）"
+                  : "输入法律问题，AI 将流式回复；历史消息已持久化"
                 : "创建或选择一个会话开始对话"
             }
             messages={
@@ -223,6 +309,16 @@ export default function HomePage() {
                 messages={activeMessages}
                 isStreaming={isStreaming}
                 scrollToBottomNonce={scrollToBottomNonce}
+                isLoading={isMessagesLoading}
+                loadingError={
+                  isMessagesLoading || activeMessages.length > 0
+                    ? null
+                    : chatError
+                }
+                onDeleteMessage={
+                  activeId ? handleDeleteMessageRequest : undefined
+                }
+                deletingMessageId={deletingMessageId}
               />
             }
             input={

@@ -16,6 +16,10 @@ interface MessageListProps {
   isStreaming?: boolean;
   /** 用户发送消息后递增，强制滚到底部并恢复 stick-to-bottom */
   scrollToBottomNonce?: number;
+  isLoading?: boolean;
+  loadingError?: string | null;
+  onDeleteMessage?: (messageId: string) => void;
+  deletingMessageId?: string | null;
 }
 
 function isNearBottom(element: HTMLElement): boolean {
@@ -28,6 +32,10 @@ export function MessageList({
   messages,
   isStreaming = false,
   scrollToBottomNonce = 0,
+  isLoading = false,
+  loadingError = null,
+  onDeleteMessage,
+  deletingMessageId = null,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
@@ -121,6 +129,18 @@ export function MessageList({
     scrollToBottomOnFrame,
   ]);
 
+  if (isLoading && messages.length === 0) {
+    return (
+      <p className="px-4 py-6 text-sm text-muted md:px-6">正在加载消息…</p>
+    );
+  }
+
+  if (loadingError && messages.length === 0) {
+    return (
+      <p className="px-4 py-6 text-sm text-destructive md:px-6">{loadingError}</p>
+    );
+  }
+
   if (messages.length === 0) {
     return (
       <EmptyState
@@ -139,7 +159,13 @@ export function MessageList({
       >
         <div className="flex flex-col gap-4">
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble
+              key={message.id}
+              message={message}
+              onDelete={onDeleteMessage}
+              deleteDisabled={Boolean(deletingMessageId) || isStreaming}
+              isDeleting={deletingMessageId === message.id}
+            />
           ))}
         </div>
       </div>

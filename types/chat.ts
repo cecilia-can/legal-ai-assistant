@@ -7,6 +7,20 @@ export interface ChatMessage {
   createdAt: Date;
 }
 
+/** GET/POST /api/conversations/[id]/messages 的 JSON 消息形状 */
+export type MessageJson = {
+  id: string;
+  conversationId: string;
+  role: string;
+  content: string;
+  createdAt: string;
+};
+
+export type MessageListData = {
+  items: MessageJson[];
+  nextCursor: string | null;
+};
+
 export interface Conversation {
   id: string;
   title: string;
