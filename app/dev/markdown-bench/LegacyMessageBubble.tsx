@@ -1,14 +1,11 @@
-import { memo } from "react";
 import { Trash2 } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
-import { MessageContent } from "@/components/chat/MessageContent";
 import { MessageCopyButton } from "@/components/chat/MessageCopyButton";
 import { IconButton } from "@/components/ui/IconButton";
+import { LegacyMessageContent } from "@/app/dev/markdown-bench/LegacyMessageContent";
 
-interface MessageBubbleProps {
+interface LegacyMessageBubbleProps {
   message: ChatMessage;
-  /** assistant 消息：false 时流式阶段用纯文本，完成后为 true 走 Markdown */
-  useMarkdown?: boolean;
   onDelete?: (messageId: string) => void;
   deleteDisabled?: boolean;
   isDeleting?: boolean;
@@ -26,32 +23,17 @@ const userCopyButtonClassName =
 const assistantCopyButtonClassName =
   "text-muted opacity-70 transition-opacity hover:opacity-100 focus-visible:opacity-100";
 
-function messageBubblePropsAreEqual(
-  prev: MessageBubbleProps,
-  next: MessageBubbleProps,
-): boolean {
-  return (
-    prev.message.id === next.message.id &&
-    prev.message.content === next.message.content &&
-    prev.message.role === next.message.role &&
-    prev.useMarkdown === next.useMarkdown &&
-    prev.deleteDisabled === next.deleteDisabled &&
-    prev.isDeleting === next.isDeleting
-  );
-}
-
-function MessageBubbleComponent({
+/** 优化前：无 memo；assistant 流式阶段也走 Markdown */
+export function LegacyMessageBubble({
   message,
-  useMarkdown = true,
   onDelete,
   deleteDisabled = false,
   isDeleting = false,
-}: MessageBubbleProps) {
+}: LegacyMessageBubbleProps) {
   const isUser = message.role === "user";
   const isAssistant = message.role === "assistant";
   const canDelete = Boolean(onDelete) && message.role !== "system";
   const showCopyButton = isUser || isAssistant;
-  const showAssistantMarkdown = isAssistant && useMarkdown;
 
   return (
     <article
@@ -85,8 +67,8 @@ function MessageBubbleComponent({
             />
           ) : null}
         </div>
-        {showAssistantMarkdown ? (
-          <MessageContent content={message.content} />
+        {isAssistant ? (
+          <LegacyMessageContent content={message.content} />
         ) : (
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         )}
@@ -104,5 +86,3 @@ function MessageBubbleComponent({
     </article>
   );
 }
-
-export const MessageBubble = memo(MessageBubbleComponent, messageBubblePropsAreEqual);

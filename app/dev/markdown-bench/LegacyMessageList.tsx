@@ -4,17 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { ArrowDown } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { MessageBubble } from "@/components/chat/MessageBubble";
 import { IconButton } from "@/components/ui/IconButton";
+import { LegacyMessageBubble } from "@/app/dev/markdown-bench/LegacyMessageBubble";
 
-/** 距底部多少 px 内视为「在底部附近」，与 ChatGPT 类似 */
 const NEAR_BOTTOM_THRESHOLD_PX = 80;
 
-interface MessageListProps {
+interface LegacyMessageListProps {
   messages: ChatMessage[];
-  /** 流式生成中：在底部附近时用 instant 滚动跟随 token */
   isStreaming?: boolean;
-  /** 用户发送消息后递增，强制滚到底部并恢复 stick-to-bottom */
   scrollToBottomNonce?: number;
   isLoading?: boolean;
   loadingError?: string | null;
@@ -28,7 +25,8 @@ function isNearBottom(element: HTMLElement): boolean {
   return distance <= NEAR_BOTTOM_THRESHOLD_PX;
 }
 
-export function MessageList({
+/** 优化前 MessageList：无 useMarkdown / 流式纯文本分支 */
+export function LegacyMessageList({
   messages,
   isStreaming = false,
   scrollToBottomNonce = 0,
@@ -36,15 +34,13 @@ export function MessageList({
   loadingError = null,
   onDeleteMessage,
   deletingMessageId = null,
-}: MessageListProps) {
+}: LegacyMessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const scrollRafRef = useRef<number | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
   const lastMessage = messages[messages.length - 1];
-  const streamingMessageId =
-    isStreaming && lastMessage?.role === "assistant" ? lastMessage.id : null;
   const contentScrollTrigger = `${messages.length}:${lastMessage?.content.length ?? 0}`;
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
@@ -59,7 +55,6 @@ export function MessageList({
     });
   }, []);
 
-  /** 流式期间每帧最多滚一次，避免每个 token 都触发布局重算 */
   const scrollToBottomOnFrame = useCallback(
     (behavior: ScrollBehavior) => {
       if (scrollRafRef.current !== null) {
@@ -161,13 +156,9 @@ export function MessageList({
       >
         <div className="flex flex-col gap-4">
           {messages.map((message) => (
-            <MessageBubble
+            <LegacyMessageBubble
               key={message.id}
               message={message}
-              useMarkdown={
-                message.role !== "assistant" ||
-                message.id !== streamingMessageId
-              }
               onDelete={onDeleteMessage}
               deleteDisabled={Boolean(deletingMessageId) || isStreaming}
               isDeleting={deletingMessageId === message.id}

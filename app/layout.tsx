@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./markdown.css";
+import "highlight.js/styles/github.min.css";
 
 // 两种Google字体
 // Geist Sans: 现代、简洁的字体，适用于标题和正文

@@ -80,6 +80,7 @@ ChatBot
 * Markdown 渲染
 * 代码高亮
 * 聊天记录持久化
+* 用户登录鉴权与数据隔离
 
 学习目标：
 
@@ -87,6 +88,7 @@ ChatBot
 * Streaming
 * Prompt Engineering
 * Conversation Management
+* Authentication & Authorization
 
 ---
 

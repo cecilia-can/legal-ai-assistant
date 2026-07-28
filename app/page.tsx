@@ -190,8 +190,12 @@ export default function HomePage() {
     await deleteMessage(activeId, id);
   }
 
+  function handleStopStream() {
+    abortStream();
+  }
+
   function handleSubmitMessage(content: string) {
-    if (!activeId || isStreaming) {
+    if (!activeId) {
       return;
     }
 
@@ -299,7 +303,7 @@ export default function HomePage() {
             subtitle={
               activeId
                 ? isStreaming
-                  ? "AI 正在回复…"
+                  ? "AI 正在回复… 可停止或输入新问题"
                   : "输入法律问题，AI 将流式回复；历史消息已持久化"
                 : "创建或选择一个会话开始对话"
             }
@@ -324,7 +328,9 @@ export default function HomePage() {
             input={
               <ChatInput
                 onSubmit={handleSubmitMessage}
-                disabled={!activeId || isLoading || isStreaming}
+                disabled={!activeId || isLoading}
+                isStreaming={isStreaming}
+                onStop={handleStopStream}
               />
             }
             onOpenSidebar={() => setMobileSidebarOpen(true)}

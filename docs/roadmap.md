@@ -8,7 +8,7 @@
 
 **目标**：实现一个类似 ChatGPT 的多轮对话系统
 
-**总体时间**：约 11-15 天
+**总体时间**：约 14-18 天
 
 **功能范围**：
 - 多会话管理
@@ -17,6 +17,7 @@
 - Markdown 渲染
 - 代码高亮
 - 聊天记录持久化
+- 用户登录鉴权与数据隔离
 
 ---
 
@@ -220,13 +221,62 @@
 
 ---
 
+### Change 1.9：多用户登录鉴权与数据隔离
+
+**时间估算**：3 天
+
+**目标**：
+引入用户体系，实现登录注册与用户级数据隔离，把平台从「单租户 MVP」演进为可对外开放的多用户系统。这是 Phase 2 开始前的强制前置项——知识库、合同、案件都属于敏感数据，必须先有归属主体。
+
+**方案选型**：
+
+| 维度 | 选择 | 理由 |
+|------|------|------|
+| 认证框架 | Auth.js v5（NextAuth）+ Prisma Adapter | 开源自建，与 App Router 深度集成，无第三方托管成本 |
+| 登录方式 | 邮箱密码（Credentials）+ OAuth（GitHub / Google） | Credentials 掌握哈希与会话原理，OAuth 提升实际体验 |
+| 隔离粒度 | 用户级：`Conversation` 归属 `userId` | 组织、团队协作与 RBAC 留到 Phase 5 案件工作空间 |
+| 授权位置 | DAL（`verifySession()`）为主，`proxy.ts` 仅做乐观重定向 | Next.js 官方推荐：安全校验贴近数据源，而非只靠路由层 |
+
+**工作内容**：
+1. 安装配置 Auth.js v5，创建 `auth.ts` 与 `app/api/auth/[...nextauth]/route.ts`
+2. 扩展 Prisma Schema：新增 `User`、`Account`、`Session`、`VerificationToken` 四张 Auth.js 标准表；`Conversation` 增加 `userId` 外键与 `@@index([userId, updatedAt])`
+3. 实现 Credentials Provider：注册 Server Action + Zod 校验 + 密码哈希（bcrypt / argon2）
+4. 接入 OAuth Provider（GitHub、Google），配置回调地址与环境变量
+5. 建立数据访问层 `lib/auth/dal.ts`：`verifySession()` 用 React `cache` 去重，作为所有受保护数据请求的统一入口
+6. 改造现有 API：`/api/conversations`、`/api/conversations/[id]/messages`、`/api/chat` 全部按 `session.user.id` 过滤，未登录返回 401、越权返回 404
+7. 新增根目录 `proxy.ts`（Next.js 16 中间件的新名称），对未登录用户做路由级乐观重定向
+8. 实现登录 / 注册 / 登出页面与侧栏用户菜单
+9. 编写存量数据迁移脚本：为已有 `Conversation` 回填归属用户或清理
+10. 越权测试：跨用户读取、删除会话、向他人会话发消息均须被拒绝
+
+**交付物**：
+- `auth.ts`、`app/api/auth/[...nextauth]/route.ts` - Auth.js 配置与路由
+- `lib/auth/dal.ts` - 会话校验与数据访问层
+- `proxy.ts` - 路由级乐观鉴权
+- `app/(auth)/login/page.tsx`、`app/(auth)/register/page.tsx` - 认证页面
+- `prisma/migrations/*_add_user_auth` - 用户表与 `userId` 外键迁移
+- 越权访问测试用例与安全检查清单
+
+**依赖关系**：
+- Change 1.3（会话管理 API）
+- Change 1.5（消息持久化）
+- Change 1.8（UX 优化，登录页复用加载状态与错误提示组件）
+
+**风险与注意点**：
+- Next.js 16 已将 `middleware.ts` 更名为 `proxy.ts` 且运行在 Node.js 运行时，实施前需确认所选 Auth.js 版本的兼容性
+- `proxy.ts` 只做基于 Cookie 的乐观检查，真正的授权判断必须下沉到 DAL 与 Route Handler，否则 Server Action 等入口会绕过校验
+- 存量会话没有归属，迁移前需先决定「全部划归首个账号」还是「清库重建」
+- Phase 2 起新增的 `Document`、`Case` 等表应从建表起就带 `userId`，避免二次迁移
+
+---
+
 ## Phase 2：法律知识库（RAG）
 
 **目标**：让系统具备法律知识检索能力
 
 **总体时间**：约 15-20 天
 
-**前置条件**：Phase 1 完成
+**前置条件**：Phase 1 完成（含 Change 1.9 鉴权与数据隔离——文档、向量数据须从建表起带用户归属）
 
 ---
 
@@ -642,13 +692,13 @@
 
 | Phase | 名称 | 时间估算 | 累计时间 |
 |-------|------|----------|----------|
-| Phase 1 | ChatBot | 11-15 天 | 11-15 天 |
-| Phase 2 | 法律知识库（RAG） | 15-20 天 | 26-35 天 |
-| Phase 3 | 合同审查 | 12-15 天 | 38-50 天 |
-| Phase 4 | 案件分析 Agent | 18-22 天 | 56-72 天 |
-| Phase 5 | 案件工作空间 | 20-25 天 | 76-97 天 |
+| Phase 1 | ChatBot + 鉴权 | 14-18 天 | 14-18 天 |
+| Phase 2 | 法律知识库（RAG） | 15-20 天 | 29-38 天 |
+| Phase 3 | 合同审查 | 12-15 天 | 41-53 天 |
+| Phase 4 | 案件分析 Agent | 18-22 天 | 59-75 天 |
+| Phase 5 | 案件工作空间 | 20-25 天 | 79-100 天 |
 
-**总计**：约 76-97 个工作日（约 3.5-4.5 个月）
+**总计**：约 79-100 个工作日（约 4-5 个月）
 
 ---
 
