@@ -14,6 +14,7 @@
 | 1.4 AI API 集成与流式输出 | [1.4-ai-api-streaming.md](./1.4-ai-api-streaming.md) | 9 | 2026-07-26 |
 | 1.5 消息持久化 | [1.5-message-persistence.md](./1.5-message-persistence.md) | 8 | 2026-07-27 |
 | 1.5 持久化优化与调整复盘 | [1.5面试文档/1.5-message-persistence-optimizations.md](./1.5面试文档/1.5-message-persistence-optimizations.md) | — | 2026-07-27 |
+| 1.6 Markdown 渲染性能调研 | [1.6面试文档/1.6-markdown-rendering-performance-investigation.md](./1.6面试文档/1.6-markdown-rendering-performance-investigation.md) | — | 2026-07-28 |
 | 1.4 聊天列表滚动与回到底部 | [1.4面试文档/1.4-chat-scroll-ux.md](./1.4面试文档/1.4-chat-scroll-ux.md) | — | 2026-07-26 |
 | 1.4 流式观感与展示队列 | [1.4面试文档/1.4-streaming-typewriter-ux.md](./1.4面试文档/1.4-streaming-typewriter-ux.md) | — | 2026-07-27 |
 | 1.4 面试追问与解答思路 | [1.4面试文档/1.4-interview-followup.md](./1.4面试文档/1.4-interview-followup.md) | — | 2026-07-26 |
@@ -24,6 +25,7 @@
 |------|------|------|----------|
 | 传统后端概念 × 本项目 | [general-backend-concepts.md](./general-backend-concepts.md) | 高并发、熔断、限流等与 roadmap 的对应关系 | 2026-07-17 |
 | AI 流式输出方案对比与选型 | [general-streaming-protocols.md](./general-streaming-protocols.md) | Plain text / SSE / WebSocket、EventSource、主流实践、面试追问 | 2026-07-25 |
+| 后端技术栈 / 语言选型决策 | [general-backend-stack-decision.md](./general-backend-stack-decision.md) | Next.js vs Node vs Python、RAG/Agent 栈、演进路径、面试追问 | 2026-07-28 |
 
 ## 使用说明
 

@@ -11,11 +11,13 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v",
-    "measure:latency": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-api-latency.ps1"
+    "measure:latency": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-api-latency.ps1",
+    "measure:markdown": "tsx scripts/benchmark-markdown-render.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "highlight.js": "^11.11.1",
     "lucide-react": "^1.27.0",
     "next": "16.2.9",
     "openai": "^6.49.0",
@@ -23,6 +25,9 @@
     "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-markdown": "^10.1.0",
+    "rehype-highlight": "^7.0.2",
+    "remark-gfm": "^4.0.1",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -35,6 +40,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
+    "tsx": "^4.20.5",
     "typescript": "^5"
   }
 }
