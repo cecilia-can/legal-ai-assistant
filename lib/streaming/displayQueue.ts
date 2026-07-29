@@ -26,8 +26,16 @@ export function createDisplayQueue(
   let lastTick = 0;
   let accumulatedMs = 0;
   let idleResolve: (() => void) | null = null;
+  let idleNotified = false;
 
   function resolveIdle() {
+    if (idleNotified) {
+      idleResolve?.();
+      idleResolve = null;
+      return;
+    }
+
+    idleNotified = true;
     idleResolve?.();
     idleResolve = null;
     onIdle?.();
@@ -145,6 +153,7 @@ export function createDisplayQueue(
 
   function waitUntilIdle(): Promise<void> {
     if (cancelled || (buffer.length === 0 && networkDone)) {
+      resolveIdle();
       return Promise.resolve();
     }
 

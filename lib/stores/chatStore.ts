@@ -357,6 +357,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          conversationId,
           messages: toApiMessages([...previousMessages, userMessage]),
         }),
         signal: controller.signal,
@@ -418,6 +419,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           networkAssistantText,
         );
         await displayQueue.waitUntilIdle();
+        clearStreamingIfMatch(set, conversationId);
       } else {
         displayQueue.flushSync();
         displayQueue.cancel();
@@ -429,6 +431,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           trimmed,
           networkAssistantText,
         );
+        clearStreamingIfMatch(set, conversationId);
       }
     } catch (error) {
       if (controller.signal.aborted) {
@@ -442,6 +445,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           trimmed,
           networkAssistantText,
         );
+        clearStreamingIfMatch(set, conversationId);
         return;
       }
 

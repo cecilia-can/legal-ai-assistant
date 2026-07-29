@@ -15,6 +15,7 @@
 | 1.5 消息持久化 | [1.5-message-persistence.md](./1.5-message-persistence.md) | 8 | 2026-07-27 |
 | 1.5 持久化优化与调整复盘 | [1.5面试文档/1.5-message-persistence-optimizations.md](./1.5面试文档/1.5-message-persistence-optimizations.md) | — | 2026-07-27 |
 | 1.6 Markdown 渲染性能调研 | [1.6面试文档/1.6-markdown-rendering-performance-investigation.md](./1.6面试文档/1.6-markdown-rendering-performance-investigation.md) | — | 2026-07-28 |
+| 1.7 Prompt 工程：上下文与安全 | [1.7面试文档/1.7-prompt-engineering-context-and-security.md](./1.7面试文档/1.7-prompt-engineering-context-and-security.md) | 10 | 2026-07-29 |
 | 1.4 聊天列表滚动与回到底部 | [1.4面试文档/1.4-chat-scroll-ux.md](./1.4面试文档/1.4-chat-scroll-ux.md) | — | 2026-07-26 |
 | 1.4 流式观感与展示队列 | [1.4面试文档/1.4-streaming-typewriter-ux.md](./1.4面试文档/1.4-streaming-typewriter-ux.md) | — | 2026-07-27 |
 | 1.4 面试追问与解答思路 | [1.4面试文档/1.4-interview-followup.md](./1.4面试文档/1.4-interview-followup.md) | — | 2026-07-26 |

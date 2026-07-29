@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { ChatApiMessage } from "@/types/chat";
+import type { ModelMessage } from "@/types/chat";
 
 const DEFAULT_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-chat";
@@ -76,7 +76,7 @@ function toAiServiceError(error: unknown): AiServiceError {
 }
 
 export async function createChatCompletionStream(
-  messages: ChatApiMessage[],
+  messages: ModelMessage[],
 ): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
   let lastError: AiServiceError | null = null;
 
@@ -87,6 +87,7 @@ export async function createChatCompletionStream(
         model: getModelName(),
         messages,
         stream: true,
+        stream_options: { include_usage: true },
       });
     } catch (error) {
       if (error instanceof AiConfigError) {
@@ -112,4 +113,27 @@ export function extractDeltaText(
   chunk: OpenAI.Chat.Completions.ChatCompletionChunk,
 ): string {
   return chunk.choices[0]?.delta?.content ?? "";
+}
+
+export type ChatCompletionUsage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+};
+
+export function extractUsageFromChunk(
+  chunk: OpenAI.Chat.Completions.ChatCompletionChunk,
+): ChatCompletionUsage | null {
+  const usage = chunk.usage;
+  if (
+    !usage ||
+    typeof usage.prompt_tokens !== "number" ||
+    typeof usage.completion_tokens !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    prompt_tokens: usage.prompt_tokens,
+    completion_tokens: usage.completion_tokens,
+  };
 }

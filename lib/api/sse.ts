@@ -13,6 +13,35 @@ export function encodeSseEvent(event: ChatStreamEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
 
+const SSE_RESPONSE_HEADERS = {
+  "Content-Type": "text/event-stream; charset=utf-8",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+} as const;
+
+/**
+ * 返回固定文本的 SSE 响应（单 token + done），用于越狱拒答等不调模型的场景。
+ */
+export function createFixedTextSseResponse(text: string): Response {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      const encoder = new TextEncoder();
+      controller.enqueue(encoder.encode(encodeSseEvent({ type: "token", text })));
+      controller.enqueue(encoder.encode(encodeSseEvent({ type: "done" })));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: SSE_RESPONSE_HEADERS,
+  });
+}
+
+export function getSseResponseHeaders(): typeof SSE_RESPONSE_HEADERS {
+  return SSE_RESPONSE_HEADERS;
+}
+
 /** parseSseChunk 的返回值：
  * 已解析出的事件列表 + 尚未构成完整帧的尾部文本。
  * 例如：
