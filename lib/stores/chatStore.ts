@@ -409,7 +409,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       if (!controller.signal.aborted) {
         displayQueue.markNetworkDone();
-        // 立即按网络完整文本落库，不等打字机排空（避免刷新只留下 user）
+        displayQueue.flushSync();
+        clearStreamingIfMatch(set, conversationId);
+        // 落库使用网络完整文本；UI 流式状态已在 flush 后结束
         await finalizeRound(
           set,
           conversationId,
@@ -418,8 +420,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           trimmed,
           networkAssistantText,
         );
-        await displayQueue.waitUntilIdle();
-        clearStreamingIfMatch(set, conversationId);
       } else {
         displayQueue.flushSync();
         displayQueue.cancel();
