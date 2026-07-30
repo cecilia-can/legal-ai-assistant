@@ -1,15 +1,42 @@
 import OpenAI from "openai";
 import { jsonError } from "@/lib/api/api-response";
-import { encodeSseEvent } from "@/lib/api/sse";
+import {
+  createFixedTextSseResponse,
+  encodeSseEvent,
+  getSseResponseHeaders,
+} from "@/lib/api/sse";
+import { buildModelMessages, computeInputTokenStats } from "@/lib/ai/context";
+import {
+  logChatCompletion,
+  logJailbreakBlocked,
+} from "@/lib/ai/chatUsageLog";
+import {
+  getJailbreakRejectionMessage,
+  isLatestUserJailbreak,
+} from "@/lib/ai/jailbreak";
 import {
   AiConfigError,
   AiServiceError,
   createChatCompletionStream,
   extractDeltaText,
+  extractUsageFromChunk,
 } from "@/lib/ai/client";
 import type { ChatApiMessage } from "@/types/chat";
 
 export const dynamic = "force-dynamic";
+
+function containsSystemRole(value: unknown): boolean {
+  if (!Array.isArray(value)) {
+    return false;
+  }
+
+  return value.some(
+    (item) =>
+      typeof item === "object" &&
+      item !== null &&
+      (item as { role?: unknown }).role === "system",
+  );
+}
 
 function isValidMessages(value: unknown): value is ChatApiMessage[] {
   if (!Array.isArray(value) || value.length === 0) {
@@ -26,6 +53,15 @@ function isValidMessages(value: unknown): value is ChatApiMessage[] {
   );
 }
 
+function parseConversationId(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export async function POST(request: Request) {
   let body: unknown;
 
@@ -36,15 +72,34 @@ export async function POST(request: Request) {
   }
 
   const messages = (body as { messages?: unknown }).messages;
+  const conversationId = parseConversationId(
+    (body as { conversationId?: unknown }).conversationId,
+  );
+
+  if (containsSystemRole(messages)) {
+    return jsonError("不允许客户端传入 system 角色的消息。", 400);
+  }
 
   if (!isValidMessages(messages)) {
     return jsonError("messages 必须是非空数组，且每项含 role 与 content。", 400);
   }
 
+  if (isLatestUserJailbreak(messages)) {
+    const tokenStats = computeInputTokenStats(messages);
+    logJailbreakBlocked({
+      conversationId,
+      saved_input_tokens_est: tokenStats.local_trimmed_input,
+    });
+    return createFixedTextSseResponse(getJailbreakRejectionMessage());
+  }
+
+  const tokenStats = computeInputTokenStats(messages);
+  const modelMessages = buildModelMessages(messages);
+
   let upstream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
 
   try {
-    upstream = await createChatCompletionStream(messages);
+    upstream = await createChatCompletionStream(modelMessages);
   } catch (error) {
     if (error instanceof AiConfigError) {
       return jsonError(error.message, 500);
@@ -65,15 +120,32 @@ export async function POST(request: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const encoder = new TextEncoder();
+      let lastUsage: { prompt_tokens: number; completion_tokens: number } | null =
+        null;
 
       try {
         for await (const chunk of upstream) {
+          const usage = extractUsageFromChunk(chunk);
+          if (usage) {
+            lastUsage = usage;
+          }
+
           const text = extractDeltaText(chunk);
           if (text) {
             controller.enqueue(
               encoder.encode(encodeSseEvent({ type: "token", text })),
             );
           }
+        }
+
+        if (lastUsage) {
+          logChatCompletion({
+            conversationId,
+            usage: lastUsage,
+            local_full_input: tokenStats.local_full_input,
+            local_trimmed_input: tokenStats.local_trimmed_input,
+            saved_by_truncation_est: tokenStats.saved_by_truncation_est,
+          });
         }
 
         controller.enqueue(encoder.encode(encodeSseEvent({ type: "done" })));
@@ -95,10 +167,6 @@ export async function POST(request: Request) {
 
   return new Response(stream, {
     status: 200,
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-    },
+    headers: getSseResponseHeaders(),
   });
 }

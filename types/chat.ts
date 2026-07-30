@@ -34,6 +34,18 @@ export type ChatApiMessage = {
   content: string;
 };
 
+/** POST /api/chat request body. */
+export type ChatApiRequestBody = {
+  messages: ChatApiMessage[];
+  conversationId?: string;
+};
+
+/** Messages sent to the AI provider (includes system). */
+export type ModelMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
 export type ChatStreamTokenEvent = {
   type: "token";
   text: string;
