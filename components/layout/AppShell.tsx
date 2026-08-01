@@ -24,7 +24,7 @@ export function AppShell({
     <div className="flex h-full min-h-screen w-full overflow-hidden bg-background md:flex-row">
       <div
         className={`hidden h-full shrink-0 overflow-hidden transition-[width] duration-300 ease-out md:flex ${
-          desktopSidebarCollapsed ? "md:w-0" : "md:w-80"
+          desktopSidebarCollapsed ? "md:w-0" : "md:w-72"
         }`}
       >
         {renderSidebar({ onCollapse: onDesktopSidebarCollapse })}
@@ -41,7 +41,7 @@ export function AppShell({
       />
 
       <div
-        className={`fixed inset-y-0 left-0 z-50 flex w-[min(85vw,20rem)] transform transition-transform duration-300 ease-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[min(85vw,18rem)] transform transition-transform duration-300 ease-out md:hidden ${
           mobileSidebarOpen
             ? "translate-x-0"
             : "pointer-events-none -translate-x-full"

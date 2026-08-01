@@ -7,6 +7,7 @@ import type { ConversationJson } from "@/lib/api/conversation-response";
 import { parseConversationJson } from "@/lib/api/conversation-response";
 import type { Conversation } from "@/types/chat";
 import { create } from "zustand";
+import { useChatStore } from "@/lib/stores/chatStore";
 
 interface ConversationState {
   conversations: Conversation[];
@@ -15,7 +16,7 @@ interface ConversationState {
   deletingId: string | null;
   error: string | null;
   fetchConversations: () => Promise<void>;
-  createConversation: () => Promise<void>;
+  createConversation: () => Promise<string | null>;
   selectConversation: (id: string) => void;
   deleteConversation: (id: string) => Promise<void>;
   updateConversationTitle: (id: string, title: string) => Promise<void>;
@@ -142,11 +143,15 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         ),
       );
 
+      useChatStore.getState().seedEmptyConversation(conversation.id);
+
       set((state) => ({
         conversations: [conversation, ...state.conversations],
         activeId: conversation.id,
         error: null,
       }));
+
+      return conversation.id;
     } catch (error) {
       set({
         error:
@@ -154,6 +159,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
             ? error.message
             : "无法创建会话，请稍后重试。",
       });
+      return null;
     }
   },
 

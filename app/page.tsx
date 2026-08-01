@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MainPanel } from "@/components/layout/MainPanel";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { MessageList } from "@/components/chat/MessageList";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { ChatErrorBoundary } from "@/components/ChatErrorBoundary";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { InlineError } from "@/components/ui/InlineError";
 import {
   isDefaultConversationTitle,
   titleFromFirstMessage,
 } from "@/lib/conversation-defaults";
+import { useChatKeyboardShortcuts } from "@/lib/hooks/useChatKeyboardShortcuts";
 import {
   getActiveConversation,
   useConversationStore,
@@ -20,6 +23,8 @@ import {
   getConversationMessages,
   useChatStore,
 } from "@/lib/stores/chatStore";
+
+const CHAT_INPUT_ID = "chat-input-textarea";
 
 export default function HomePage() {
   const conversations = useConversationStore((state) => state.conversations);
@@ -59,6 +64,7 @@ export default function HomePage() {
   const sendMessage = useChatStore((state) => state.sendMessage);
   const abortStream = useChatStore((state) => state.abortStream);
   const deleteMessage = useChatStore((state) => state.deleteMessage);
+  const regenerateMessage = useChatStore((state) => state.regenerateMessage);
   const clearConversationMessages = useChatStore(
     (state) => state.clearConversationMessages,
   );
@@ -83,7 +89,23 @@ export default function HomePage() {
   );
   const isStreaming = streamingConversationId === activeId;
   const isMessagesLoading = loadingConversationId === activeId;
-  const sidebarError = conversationError ?? chatError;
+
+  const handleFocusInput = useCallback(() => {
+    document.getElementById(CHAT_INPUT_ID)?.focus();
+  }, []);
+
+  const handleRetryConversations = useCallback(() => {
+    void fetchConversations();
+  }, [fetchConversations]);
+
+  const handleRetryMessages = useCallback(() => {
+    if (!activeId) {
+      return;
+    }
+
+    clearChatError();
+    void loadMessages(activeId);
+  }, [activeId, clearChatError, loadMessages]);
 
   useEffect(() => {
     void fetchConversations();
@@ -185,13 +207,31 @@ export default function HomePage() {
     }
 
     const { id } = pendingDeleteMessage;
-    // 先关弹框：列表已乐观移除，不必等 Neon DELETE 返回才关
     setPendingDeleteMessage(null);
     await deleteMessage(activeId, id);
   }
 
   function handleStopStream() {
     abortStream();
+  }
+
+  useChatKeyboardShortcuts({
+    onNewChat: () => void handleNewChat(),
+    onFocusInput: handleFocusInput,
+    onCloseDrawer: () => setMobileSidebarOpen(false),
+    onStopStream: handleStopStream,
+    isDrawerOpen: mobileSidebarOpen,
+    isStreaming,
+  });
+
+  function handleRegenerateMessage(messageId: string) {
+    if (!activeId || isStreaming || deletingMessageId) {
+      return;
+    }
+
+    clearChatError();
+    setScrollToBottomNonce((n) => n + 1);
+    void regenerateMessage(activeId, messageId);
   }
 
   function handleSubmitMessage(content: string) {
@@ -227,13 +267,23 @@ export default function HomePage() {
   }) {
     return (
       <Sidebar onNewChat={handleNewChat} onClose={onClose} onCollapse={onCollapse}>
-        {sidebarError ? (
-          <p className="border-b border-border px-4 py-3 text-sm text-destructive">
-            {sidebarError}
-          </p>
+        {conversationError ? (
+          <div className="border-b border-border px-4 py-3">
+            <InlineError
+              message={conversationError}
+              onRetry={handleRetryConversations}
+              retrying={isLoading}
+            />
+          </div>
         ) : null}
-        {isLoading ? (
-          <p className="px-4 py-6 text-sm text-muted">正在加载会话…</p>
+        {isLoading && conversations.length === 0 && !conversationError ? (
+          <p
+            className="px-4 py-6 text-sm text-muted"
+            aria-busy="true"
+            aria-label="正在加载会话列表"
+          >
+            正在加载…
+          </p>
         ) : (
           <ConversationList
             conversations={conversations}
@@ -250,6 +300,9 @@ export default function HomePage() {
       </Sidebar>
     );
   }
+
+  const messageLoadError =
+    isMessagesLoading || activeMessages.length > 0 ? null : chatError;
 
   return (
     <>
@@ -298,45 +351,69 @@ export default function HomePage() {
         onDesktopSidebarCollapse={() => setDesktopSidebarCollapsed(true)}
         renderSidebar={renderSidebar}
         main={
-          <MainPanel
-            title={activeConversation?.title ?? "法律 AI 助手"}
-            subtitle={
-              activeId
-                ? isStreaming
-                  ? "AI 正在回复… 可停止或输入新问题"
-                  : "输入法律问题，AI 将流式回复；历史消息已持久化"
-                : "创建或选择一个会话开始对话"
-            }
-            messages={
-              <MessageList
-                key={activeId ?? "none"}
-                messages={activeMessages}
-                isStreaming={isStreaming}
-                scrollToBottomNonce={scrollToBottomNonce}
-                isLoading={isMessagesLoading}
-                loadingError={
-                  isMessagesLoading || activeMessages.length > 0
-                    ? null
-                    : chatError
-                }
-                onDeleteMessage={
-                  activeId ? handleDeleteMessageRequest : undefined
-                }
-                deletingMessageId={deletingMessageId}
-              />
-            }
-            input={
-              <ChatInput
-                onSubmit={handleSubmitMessage}
-                disabled={!activeId || isLoading}
-                isStreaming={isStreaming}
-                onStop={handleStopStream}
-              />
-            }
-            onOpenSidebar={() => setMobileSidebarOpen(true)}
-            desktopSidebarCollapsed={desktopSidebarCollapsed}
-            onExpandDesktopSidebar={() => setDesktopSidebarCollapsed(false)}
-          />
+          <ChatErrorBoundary>
+            <MainPanel
+              title={activeConversation?.title ?? "法律 AI 助手"}
+              isStreaming={isStreaming}
+              subtitle={
+                activeId
+                  ? isStreaming
+                    ? "AI 正在回复… 可停止或输入新问题"
+                    : "输入法律问题，AI 将流式回复；历史消息已持久化"
+                  : "创建或选择一个会话开始对话"
+              }
+              messages={
+                <div className="flex h-full min-h-0 flex-col">
+                  {chatError && activeMessages.length > 0 ? (
+                    <div className="shrink-0 border-b border-border px-4 py-3 md:px-6">
+                      <InlineError
+                        message={chatError}
+                        onDismiss={clearChatError}
+                        onRetry={handleRetryMessages}
+                        retrying={isMessagesLoading}
+                      />
+                    </div>
+                  ) : null}
+                  <div className="min-h-0 flex-1">
+                    <MessageList
+                      key={activeId ?? "none"}
+                      messages={activeMessages}
+                      isStreaming={isStreaming}
+                      scrollToBottomNonce={scrollToBottomNonce}
+                      isLoading={isMessagesLoading}
+                      loadingError={messageLoadError}
+                      onRetryLoad={activeId ? handleRetryMessages : undefined}
+                      retryingLoad={isMessagesLoading}
+                      onDeleteMessage={
+                        activeId ? handleDeleteMessageRequest : undefined
+                      }
+                      deletingMessageId={deletingMessageId}
+                      onRegenerateMessage={
+                        activeId ? handleRegenerateMessage : undefined
+                      }
+                      regenerateDisabled={
+                        Boolean(deletingMessageId) ||
+                        pendingDeleteConversation !== null ||
+                        pendingDeleteMessage !== null
+                      }
+                    />
+                  </div>
+                </div>
+              }
+              input={
+                <ChatInput
+                  inputId={CHAT_INPUT_ID}
+                  onSubmit={handleSubmitMessage}
+                  disabled={!activeId || isLoading}
+                  isStreaming={isStreaming}
+                  onStop={handleStopStream}
+                />
+              }
+              onOpenSidebar={() => setMobileSidebarOpen(true)}
+              desktopSidebarCollapsed={desktopSidebarCollapsed}
+              onExpandDesktopSidebar={() => setDesktopSidebarCollapsed(false)}
+            />
+          </ChatErrorBoundary>
         }
       />
     </>

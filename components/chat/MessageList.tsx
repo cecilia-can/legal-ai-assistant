@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types/chat";
 import { ArrowDown } from "lucide-react";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { IconButton } from "@/components/ui/IconButton";
+import { InlineError } from "@/components/ui/InlineError";
 
 /** 距底部多少 px 内视为「在底部附近」，与 ChatGPT 类似 */
 const NEAR_BOTTOM_THRESHOLD_PX = 80;
@@ -18,8 +19,12 @@ interface MessageListProps {
   scrollToBottomNonce?: number;
   isLoading?: boolean;
   loadingError?: string | null;
+  onRetryLoad?: () => void;
+  retryingLoad?: boolean;
   onDeleteMessage?: (messageId: string) => void;
   deletingMessageId?: string | null;
+  onRegenerateMessage?: (messageId: string) => void;
+  regenerateDisabled?: boolean;
 }
 
 function isNearBottom(element: HTMLElement): boolean {
@@ -34,8 +39,12 @@ export function MessageList({
   scrollToBottomNonce = 0,
   isLoading = false,
   loadingError = null,
+  onRetryLoad,
+  retryingLoad = false,
   onDeleteMessage,
   deletingMessageId = null,
+  onRegenerateMessage,
+  regenerateDisabled = false,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
@@ -133,13 +142,25 @@ export function MessageList({
 
   if (isLoading && messages.length === 0) {
     return (
-      <p className="px-4 py-6 text-sm text-muted md:px-6">正在加载消息…</p>
+      <div
+        className="flex h-full items-center justify-center px-4 py-12 text-sm text-muted md:px-6"
+        aria-busy="true"
+        aria-label="正在加载消息"
+      >
+        正在加载…
+      </div>
     );
   }
 
   if (loadingError && messages.length === 0) {
     return (
-      <p className="px-4 py-6 text-sm text-destructive md:px-6">{loadingError}</p>
+      <div className="px-4 py-6 md:px-6">
+        <InlineError
+          message={loadingError}
+          onRetry={onRetryLoad}
+          retrying={retryingLoad}
+        />
+      </div>
     );
   }
 
@@ -171,6 +192,8 @@ export function MessageList({
               onDelete={onDeleteMessage}
               deleteDisabled={Boolean(deletingMessageId) || isStreaming}
               isDeleting={deletingMessageId === message.id}
+              onRegenerate={onRegenerateMessage}
+              regenerateDisabled={regenerateDisabled || isStreaming}
             />
           ))}
         </div>
@@ -180,6 +203,7 @@ export function MessageList({
           <IconButton
             icon={ArrowDown}
             label="回到底部"
+            buttonSize={44}
             className="pointer-events-auto rounded-full shadow-md"
             onClick={handleScrollToBottomClick}
           />
