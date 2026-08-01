@@ -1,7 +1,7 @@
 "use client";
 
+import { ArrowUp, Square } from "lucide-react";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
-import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 
 interface ChatInputProps {
@@ -13,7 +13,12 @@ interface ChatInputProps {
   isStreaming?: boolean;
   /** 停止当前流式生成（等同 ChatGPT Stop） */
   onStop?: () => void;
+  /** 供快捷键聚焦输入框 */
+  inputId?: string;
 }
+
+const actionButtonBase =
+  "inline-flex shrink-0 items-center justify-center rounded-full transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40";
 
 export function ChatInput({
   placeholder = "输入您的法律问题…",
@@ -21,6 +26,7 @@ export function ChatInput({
   disabled = false,
   isStreaming = false,
   onStop,
+  inputId = "chat-input-textarea",
 }: ChatInputProps) {
   const [value, setValue] = useState("");
 
@@ -54,32 +60,49 @@ export function ChatInput({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <Textarea
-        label="聊天输入"
-        value={value}
-        onChange={(event) => setValue(event.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        rows={3}
-        disabled={disabled}
-      />
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs text-muted">
-          {isStreaming
-            ? "Enter 发送新问题（将停止当前回复），Shift+Enter 换行"
-            : "Enter 发送，Shift+Enter 换行"}
-        </p>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Textarea
+            id={inputId}
+            label="聊天输入"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            rows={3}
+            disabled={disabled}
+            className="text-base md:text-sm"
+          />
+        </div>
         {showStop ? (
-          <Button type="button" variant="secondary" onClick={handleStopClick}>
-            停止生成
-          </Button>
+          <button
+            type="button"
+            aria-label="停止生成"
+            onClick={handleStopClick}
+            className={`${actionButtonBase} mb-1 h-8 w-8 border border-foreground bg-surface hover:bg-background`}
+          >
+            <Square
+              className="h-2.5 w-2.5 fill-foreground text-foreground"
+              aria-hidden
+            />
+          </button>
         ) : (
-          <Button type="submit" disabled={!canSend}>
-            发送
-          </Button>
+          <button
+            type="submit"
+            aria-label="发送"
+            disabled={!canSend}
+            className={`${actionButtonBase} mb-1 h-8 w-8 bg-primary text-primary-foreground hover:opacity-90`}
+          >
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+          </button>
         )}
       </div>
+      <p className="text-xs text-muted">
+        {isStreaming
+          ? "Enter 发送新问题（将停止当前回复），Shift+Enter 换行 · Ctrl+Shift+O 新建 · Shift+Esc 聚焦 · Ctrl+. 停止"
+          : "Enter 发送，Shift+Enter 换行 · Ctrl+Shift+O 新建 · Shift+Esc 聚焦输入"}
+      </p>
     </form>
   );
 }

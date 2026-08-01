@@ -4,6 +4,7 @@ import { IconButton } from "@/components/ui/IconButton";
 interface MainPanelProps {
   title: string;
   subtitle?: string;
+  isStreaming?: boolean;
   messages: ReactNode;
   input: ReactNode;
   onOpenSidebar?: () => void;
@@ -14,6 +15,7 @@ interface MainPanelProps {
 export function MainPanel({
   title,
   subtitle,
+  isStreaming = false,
   messages,
   input,
   onOpenSidebar,
@@ -28,6 +30,7 @@ export function MainPanel({
             <IconButton
               icon={PanelLeft}
               label="打开会话列表"
+              buttonSize={44}
               className="md:hidden"
               onClick={onOpenSidebar}
             />
@@ -43,13 +46,21 @@ export function MainPanel({
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-semibold text-foreground">{title}</h1>
             {subtitle ? (
-              <p className="mt-1 truncate text-xs text-muted">{subtitle}</p>
+              <p className="mt-1 flex items-center gap-2 truncate text-xs text-muted">
+                {isStreaming ? (
+                  <span
+                    className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary"
+                    aria-hidden
+                  />
+                ) : null}
+                <span className="truncate">{subtitle}</span>
+              </p>
             ) : null}
           </div>
         </div>
       </header>
       <div className="relative min-h-0 flex-1">{messages}</div>
-      <footer className="border-t border-border bg-surface px-4 py-4 md:px-6">
+      <footer className="border-t border-border bg-surface px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6">
         {input}
       </footer>
     </section>

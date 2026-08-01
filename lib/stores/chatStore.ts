@@ -32,12 +32,18 @@ interface ChatState {
   loadMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, content: string) => Promise<void>;
   abortStream: () => void;
+  regenerateMessage: (
+    conversationId: string,
+    assistantMessageId: string,
+  ) => Promise<void>;
   deleteMessage: (
     conversationId: string,
     messageId: string,
   ) => Promise<void>;
   clearConversationMessages: (conversationId: string) => void;
   clearError: () => void;
+  /** 新建空会话时预置空列表，避免无意义的加载骨架与重复请求 */
+  seedEmptyConversation: (conversationId: string) => void;
 }
 
 let abortController: AbortController | null = null;
@@ -55,6 +61,32 @@ function toApiMessages(messages: ChatMessage[]): ChatApiMessage[] {
 
 function createMessageId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isPersistedMessageId(id: string): boolean {
+  return !id.startsWith("user-") && !id.startsWith("assistant-");
+}
+
+type ChatStoreSet = (
+  partial:
+    | ChatState
+    | Partial<ChatState>
+    | ((state: ChatState) => ChatState | Partial<ChatState>),
+) => void;
+
+async function deletePersistedMessage(
+  conversationId: string,
+  messageId: string,
+): Promise<void> {
+  const response = await fetch(
+    `/api/conversations/${conversationId}/messages/${messageId}`,
+    { method: "DELETE" },
+  );
+  const payload = await parseApiResponse<null>(response);
+
+  if (!response.ok || payload.code !== API_SUCCESS_CODE) {
+    throw new Error(readApiMessage(payload, "删除消息失败，请稍后重试。"));
+  }
 }
 
 function toChatMessage(raw: MessageJson): ChatMessage {
@@ -147,6 +179,220 @@ async function postPersistedRound(
   }
 
   return { user, assistant };
+}
+
+async function postPersistedAssistant(
+  conversationId: string,
+  assistantContent: string,
+): Promise<MessageJson> {
+  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ role: "assistant", content: assistantContent }),
+  });
+
+  const payload = await parseApiResponse<MessageJson>(response);
+
+  if (!response.ok || payload.code !== API_SUCCESS_CODE || !payload.data) {
+    throw new Error(readApiMessage(payload, "保存消息失败，请稍后重试。"));
+  }
+
+  return payload.data;
+}
+
+async function finalizeRegenerateRound(
+  set: ChatStoreSet,
+  conversationId: string,
+  assistantTempId: string,
+  assistantContent: string,
+) {
+  if (!assistantContent.trim()) {
+    set((state) => {
+      const current = state.messagesByConversation[conversationId] ?? [];
+      return {
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: current.filter(
+            (message) => message.id !== assistantTempId,
+          ),
+        },
+      };
+    });
+    return;
+  }
+
+  set((state) => {
+    const current = state.messagesByConversation[conversationId] ?? [];
+    return {
+      messagesByConversation: {
+        ...state.messagesByConversation,
+        [conversationId]: current.map((message) =>
+          message.id === assistantTempId
+            ? { ...message, content: assistantContent }
+            : message,
+        ),
+      },
+    };
+  });
+
+  try {
+    const persisted = await postPersistedAssistant(
+      conversationId,
+      assistantContent,
+    );
+
+    set((state) => {
+      const current = state.messagesByConversation[conversationId] ?? [];
+      return {
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: current.map((message) =>
+            message.id === assistantTempId
+              ? toChatMessage(persisted)
+              : message,
+          ),
+        },
+      };
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "保存消息失败，请稍后重试。";
+    set({ error: message });
+  }
+}
+
+async function runAssistantStream(
+  set: ChatStoreSet,
+  options: {
+    conversationId: string;
+    assistantMessageId: string;
+    apiMessages: ChatApiMessage[];
+    onFinalize: (networkAssistantText: string) => Promise<void>;
+    onStreamError: (assistantMessageId: string) => void;
+  },
+): Promise<void> {
+  const {
+    conversationId,
+    assistantMessageId,
+    apiMessages,
+    onFinalize,
+    onStreamError,
+  } = options;
+
+  const controller = new AbortController();
+  abortController = controller;
+  activeStreamConversationId = conversationId;
+
+  let networkAssistantText = "";
+
+  const displayQueue = createDisplayQueue(
+    (chunk) => {
+      appendAssistantChunk(set, conversationId, assistantMessageId, chunk);
+    },
+    () => {
+      if (activeDisplayQueue === displayQueue) {
+        activeDisplayQueue = null;
+      }
+
+      clearStreamingIfMatch(set, conversationId);
+    },
+  );
+
+  activeDisplayQueue = displayQueue;
+
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversationId,
+        messages: apiMessages,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      let message = "AI 回复失败，请稍后重试。";
+
+      try {
+        const payload: unknown = await response.json();
+        if (isApiResponse(payload)) {
+          message = readApiMessage(payload, message);
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+
+      throw new Error(message);
+    }
+
+    if (!response.body) {
+      throw new Error("AI 响应无效。");
+    }
+
+    const reader = response.body.getReader();
+
+    await consumeSseStream(
+      reader,
+      (event) => {
+        if (
+          controller.signal.aborted ||
+          activeStreamConversationId !== conversationId
+        ) {
+          return;
+        }
+
+        if (event.type === "token") {
+          networkAssistantText += event.text;
+          displayQueue.enqueue(event.text);
+          return;
+        }
+
+        if (event.type === "error") {
+          throw new Error(event.message);
+        }
+      },
+      { signal: controller.signal },
+    );
+
+    if (!controller.signal.aborted) {
+      displayQueue.markNetworkDone();
+      displayQueue.flushSync();
+      clearStreamingIfMatch(set, conversationId);
+      await onFinalize(networkAssistantText);
+    } else {
+      displayQueue.flushSync();
+      displayQueue.cancel();
+      await onFinalize(networkAssistantText);
+      clearStreamingIfMatch(set, conversationId);
+    }
+  } catch (error) {
+    if (controller.signal.aborted) {
+      displayQueue.flushSync();
+      displayQueue.cancel();
+      await onFinalize(networkAssistantText);
+      clearStreamingIfMatch(set, conversationId);
+      return;
+    }
+
+    displayQueue.cancel();
+    onStreamError(assistantMessageId);
+    const message =
+      error instanceof Error ? error.message : "AI 回复失败，请稍后重试。";
+    set({
+      error: message,
+      streamingConversationId: null,
+    });
+  } finally {
+    if (abortController === controller) {
+      abortController = null;
+      activeStreamConversationId = null;
+    }
+
+    if (activeDisplayQueue === displayQueue) {
+      activeDisplayQueue = null;
+    }
+  }
 }
 
 /**
@@ -498,6 +744,98 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ streamingConversationId: null });
   },
 
+  regenerateMessage: async (conversationId, assistantMessageId) => {
+    get().abortStream();
+
+    const messages = get().messagesByConversation[conversationId] ?? [];
+    const assistantIndex = messages.findIndex(
+      (message) => message.id === assistantMessageId,
+    );
+
+    if (assistantIndex < 0) {
+      return;
+    }
+
+    const assistant = messages[assistantIndex];
+    if (assistant.role !== "assistant" || !assistant.content.trim()) {
+      return;
+    }
+
+    const userIndex = assistantIndex - 1;
+    const userMessage = messages[userIndex];
+    if (!userMessage || userMessage.role !== "user") {
+      return;
+    }
+
+    const toRemove = messages.slice(assistantIndex);
+    const historyForApi = toApiMessages(messages.slice(0, assistantIndex));
+
+    set({ error: null });
+
+    try {
+      await Promise.all(
+        toRemove
+          .filter((message) => isPersistedMessageId(message.id))
+          .map((message) =>
+            deletePersistedMessage(conversationId, message.id),
+          ),
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "删除消息失败，请稍后重试。";
+      set({ error: message });
+      return;
+    }
+
+    const newAssistant: ChatMessage = {
+      id: createMessageId("assistant"),
+      role: "assistant",
+      content: "",
+      createdAt: new Date(),
+    };
+
+    set({
+      messagesByConversation: {
+        ...get().messagesByConversation,
+        [conversationId]: [
+          ...messages.slice(0, assistantIndex),
+          newAssistant,
+        ],
+      },
+      streamingConversationId: conversationId,
+    });
+
+    await runAssistantStream(set, {
+      conversationId,
+      assistantMessageId: newAssistant.id,
+      apiMessages: historyForApi,
+      onFinalize: (networkAssistantText) =>
+        finalizeRegenerateRound(
+          set,
+          conversationId,
+          newAssistant.id,
+          networkAssistantText,
+        ),
+      onStreamError: (tempAssistantId) => {
+        set((state) => {
+          const current = state.messagesByConversation[conversationId] ?? [];
+          return {
+            messagesByConversation: {
+              ...state.messagesByConversation,
+              [conversationId]: current.filter(
+                (message) =>
+                  !(
+                    message.id === tempAssistantId &&
+                    message.content.length === 0
+                  ),
+              ),
+            },
+          };
+        });
+      },
+    });
+  },
+
   deleteMessage: async (conversationId, messageId) => {
     if (get().deletingMessageId) {
       return;
@@ -567,6 +905,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   clearError: () => {
     set({ error: null });
+  },
+
+  seedEmptyConversation: (conversationId) => {
+    set((state) => {
+      if (Object.hasOwn(state.messagesByConversation, conversationId)) {
+        return state;
+      }
+
+      return {
+        messagesByConversation: {
+          ...state.messagesByConversation,
+          [conversationId]: [],
+        },
+      };
+    });
   },
 }));
 
