@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { auth } from "@/auth";
+import { Providers } from "./providers";
 import "./globals.css";
 import "./markdown.css";
 import "highlight.js/styles/github.min.css";
-
 // 两种Google字体
 // Geist Sans: 现代、简洁的字体，适用于标题和正文
 const geistSans = Geist({
@@ -26,11 +27,15 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export const dynamic = "force-dynamic";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html
       lang="zh-CN"
@@ -38,7 +43,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        {children}
+        <Providers session={session}>{children}</Providers>
       </body>
     </html>
   );

@@ -1,18 +1,26 @@
 import { jsonError, jsonSuccess } from "@/lib/api/api-response";
+import { requireApiSession } from "@/lib/auth/require-api-session";
 import {
   MessageServiceError,
   deleteMessage,
 } from "@/lib/services/messageService";
+
+export const dynamic = "force-dynamic";
 
 type RouteContext = {
   params: Promise<{ id: string; messageId: string }>;
 };
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const session = await requireApiSession();
+  if (session.error) {
+    return session.error;
+  }
+
   const { id, messageId } = await context.params;
 
   try {
-    await deleteMessage(id, messageId);
+    await deleteMessage(id, session.userId, messageId);
     return jsonSuccess(null);
   } catch (error) {
     if (error instanceof MessageServiceError) {

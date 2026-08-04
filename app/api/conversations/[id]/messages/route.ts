@@ -1,5 +1,6 @@
 import { jsonError, jsonSuccess } from "@/lib/api/api-response";
 import { serializeMessage } from "@/lib/api/message-response";
+import { requireApiSession } from "@/lib/auth/require-api-session";
 import {
   MessageServiceError,
   createMessage,
@@ -7,6 +8,8 @@ import {
   listMessages,
   type CreateMessageInput,
 } from "@/lib/services/messageService";
+
+export const dynamic = "force-dynamic";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -56,6 +59,11 @@ function parseCreateInput(value: unknown): CreateMessageInput | null {
 }
 
 export async function GET(request: Request, context: RouteContext) {
+  const session = await requireApiSession();
+  if (session.error) {
+    return session.error;
+  }
+
   const { id } = await context.params;
   const { searchParams } = new URL(request.url);
   const limitOrError = parseLimit(searchParams.get("limit"));
@@ -65,7 +73,7 @@ export async function GET(request: Request, context: RouteContext) {
   }
 
   try {
-    const result = await listMessages(id, {
+    const result = await listMessages(id, session.userId, {
       limit: limitOrError,
       cursor: searchParams.get("cursor"),
     });
@@ -80,6 +88,11 @@ export async function GET(request: Request, context: RouteContext) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  const session = await requireApiSession();
+  if (session.error) {
+    return session.error;
+  }
+
   const { id } = await context.params;
 
   try {
@@ -110,7 +123,7 @@ export async function POST(request: Request, context: RouteContext) {
         inputs.push(parsed);
       }
 
-      const created = await createMessages(id, inputs);
+      const created = await createMessages(id, session.userId, inputs);
       return jsonSuccess(
         { items: created.map(serializeMessage) },
         { status: 201 },
@@ -122,7 +135,7 @@ export async function POST(request: Request, context: RouteContext) {
       return jsonError("role 必须是 user 或 assistant，且 content 非空。", 400);
     }
 
-    const message = await createMessage(id, single);
+    const message = await createMessage(id, session.userId, single);
     return jsonSuccess(serializeMessage(message), { status: 201 });
   } catch (error) {
     return serviceErrorResponse(error, "无法保存消息，请稍后重试。");

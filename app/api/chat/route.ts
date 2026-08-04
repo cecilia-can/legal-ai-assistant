@@ -11,6 +11,10 @@ import {
   logJailbreakBlocked,
 } from "@/lib/ai/chatUsageLog";
 import {
+  checkChatRateLimit,
+  recordChatTokenUsage,
+} from "@/lib/ai/rateLimit";
+import {
   getJailbreakRejectionMessage,
   isLatestUserJailbreak,
 } from "@/lib/ai/jailbreak";
@@ -21,37 +25,14 @@ import {
   extractDeltaText,
   extractUsageFromChunk,
 } from "@/lib/ai/client";
+import { requireApiSession } from "@/lib/auth/require-api-session";
+import {
+  MessageServiceError,
+  listConversationMessagesForChat,
+} from "@/lib/services/messageService";
 import type { ChatApiMessage } from "@/types/chat";
 
 export const dynamic = "force-dynamic";
-
-function containsSystemRole(value: unknown): boolean {
-  if (!Array.isArray(value)) {
-    return false;
-  }
-
-  return value.some(
-    (item) =>
-      typeof item === "object" &&
-      item !== null &&
-      (item as { role?: unknown }).role === "system",
-  );
-}
-
-function isValidMessages(value: unknown): value is ChatApiMessage[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    return false;
-  }
-
-  return value.every(
-    (item) =>
-      typeof item === "object" &&
-      item !== null &&
-      (item.role === "user" || item.role === "assistant") &&
-      typeof item.content === "string" &&
-      item.content.trim().length > 0,
-  );
-}
 
 function parseConversationId(value: unknown): string | undefined {
   if (typeof value !== "string") {
@@ -62,7 +43,32 @@ function parseConversationId(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function parseContent(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function toChatApiMessages(
+  records: Awaited<ReturnType<typeof listConversationMessagesForChat>>,
+): ChatApiMessage[] {
+  return records
+    .filter((record) => record.role === "user" || record.role === "assistant")
+    .map((record) => ({
+      role: record.role as "user" | "assistant",
+      content: record.content,
+    }));
+}
+
 export async function POST(request: Request) {
+  const session = await requireApiSession();
+  if (session.error) {
+    return session.error;
+  }
+
   let body: unknown;
 
   try {
@@ -71,21 +77,65 @@ export async function POST(request: Request) {
     return jsonError("请求体必须是 JSON。", 400);
   }
 
-  const messages = (body as { messages?: unknown }).messages;
   const conversationId = parseConversationId(
     (body as { conversationId?: unknown }).conversationId,
   );
+  const content = parseContent((body as { content?: unknown }).content);
 
-  if (containsSystemRole(messages)) {
-    return jsonError("不允许客户端传入 system 角色的消息。", 400);
+  if (!conversationId) {
+    return jsonError("conversationId 不能为空。", 400);
   }
 
-  if (!isValidMessages(messages)) {
-    return jsonError("messages 必须是非空数组，且每项含 role 与 content。", 400);
+  const rateLimit = checkChatRateLimit(session.userId);
+  if (!rateLimit.allowed) {
+    const message =
+      rateLimit.reason === "requests"
+        ? "请求过于频繁，请稍后再试。"
+        : "已达到今日使用上限，请明天再试。";
+    return jsonError(message, 429);
   }
 
-  if (isLatestUserJailbreak(messages)) {
-    const tokenStats = computeInputTokenStats(messages);
+  let apiMessages: ChatApiMessage[];
+
+  try {
+    const records = await listConversationMessagesForChat(
+      conversationId,
+      session.userId,
+    );
+    apiMessages = toChatApiMessages(records);
+
+    if (content) {
+      apiMessages = [
+        ...apiMessages,
+        {
+          role: "user",
+          content,
+        },
+      ];
+    }
+  } catch (error) {
+    if (error instanceof MessageServiceError) {
+      return jsonError(error.message, 404);
+    }
+
+    console.error("POST /api/chat failed loading history:", error);
+    return jsonError("无法加载会话历史，请稍后重试。", 500);
+  }
+
+  if (apiMessages.length === 0) {
+    return jsonError("会话中没有可用于生成的消息。", 400);
+  }
+
+  const latestUser = [...apiMessages]
+    .reverse()
+    .find((message) => message.role === "user");
+
+  if (!latestUser) {
+    return jsonError("缺少 user 消息，无法生成回复。", 400);
+  }
+
+  if (isLatestUserJailbreak(apiMessages)) {
+    const tokenStats = computeInputTokenStats(apiMessages);
     logJailbreakBlocked({
       conversationId,
       saved_input_tokens_est: tokenStats.local_trimmed_input,
@@ -93,8 +143,16 @@ export async function POST(request: Request) {
     return createFixedTextSseResponse(getJailbreakRejectionMessage());
   }
 
-  const tokenStats = computeInputTokenStats(messages);
-  const modelMessages = buildModelMessages(messages);
+  const tokenStats = computeInputTokenStats(apiMessages);
+  const tokenQuota = recordChatTokenUsage(
+    session.userId,
+    tokenStats.local_trimmed_input,
+  );
+  if (!tokenQuota.allowed) {
+    return jsonError("已达到今日 token 使用上限，请明天再试。", 429);
+  }
+
+  const modelMessages = buildModelMessages(apiMessages);
 
   let upstream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
 

@@ -8,10 +8,10 @@ import {
   parseApiResponse,
   readApiMessage,
 } from "@/lib/api/api-response";
+import { apiFetch } from "@/lib/api/client-fetch";
 import { consumeSseStream } from "@/lib/api/sse";
 import { createDisplayQueue } from "@/lib/streaming/displayQueue";
 import type {
-  ChatApiMessage,
   ChatMessage,
   MessageJson,
   MessageListData,
@@ -50,15 +50,6 @@ let abortController: AbortController | null = null;
 let activeStreamConversationId: string | null = null;
 let activeDisplayQueue: ReturnType<typeof createDisplayQueue> | null = null;
 
-function toApiMessages(messages: ChatMessage[]): ChatApiMessage[] {
-  return messages
-    .filter((message) => message.role === "user" || message.role === "assistant")
-    .map((message) => ({
-      role: message.role as "user" | "assistant",
-      content: message.content,
-    }));
-}
-
 function createMessageId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -78,7 +69,7 @@ async function deletePersistedMessage(
   conversationId: string,
   messageId: string,
 ): Promise<void> {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/conversations/${conversationId}/messages/${messageId}`,
     { method: "DELETE" },
   );
@@ -156,7 +147,7 @@ async function postPersistedRound(
   userContent: string,
   assistantContent: string,
 ): Promise<{ user: MessageJson; assistant: MessageJson }> {
-  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+  const response = await apiFetch(`/api/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -185,7 +176,7 @@ async function postPersistedAssistant(
   conversationId: string,
   assistantContent: string,
 ): Promise<MessageJson> {
-  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+  const response = await apiFetch(`/api/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ role: "assistant", content: assistantContent }),
@@ -266,7 +257,7 @@ async function runAssistantStream(
   options: {
     conversationId: string;
     assistantMessageId: string;
-    apiMessages: ChatApiMessage[];
+    content?: string;
     onFinalize: (networkAssistantText: string) => Promise<void>;
     onStreamError: (assistantMessageId: string) => void;
   },
@@ -274,7 +265,7 @@ async function runAssistantStream(
   const {
     conversationId,
     assistantMessageId,
-    apiMessages,
+    content,
     onFinalize,
     onStreamError,
   } = options;
@@ -301,13 +292,14 @@ async function runAssistantStream(
   activeDisplayQueue = displayQueue;
 
   try {
-    const response = await fetch("/api/chat", {
+    const response = await apiFetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        conversationId,
-        messages: apiMessages,
-      }),
+      body: JSON.stringify(
+        content
+          ? { conversationId, content }
+          : { conversationId },
+      ),
       signal: controller.signal,
     });
 
@@ -366,17 +358,23 @@ async function runAssistantStream(
       await onFinalize(networkAssistantText);
       clearStreamingIfMatch(set, conversationId);
     }
-  } catch (error) {
-    if (controller.signal.aborted) {
-      displayQueue.flushSync();
-      displayQueue.cancel();
-      await onFinalize(networkAssistantText);
-      clearStreamingIfMatch(set, conversationId);
-      return;
-    }
+    } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        displayQueue.cancel();
+        clearStreamingIfMatch(set, conversationId);
+        return;
+      }
 
-    displayQueue.cancel();
-    onStreamError(assistantMessageId);
+      if (controller.signal.aborted) {
+        displayQueue.flushSync();
+        displayQueue.cancel();
+        await onFinalize(networkAssistantText);
+        clearStreamingIfMatch(set, conversationId);
+        return;
+      }
+
+      displayQueue.cancel();
+      onStreamError(assistantMessageId);
     const message =
       error instanceof Error ? error.message : "AI 回复失败，请稍后重试。";
     set({
@@ -503,7 +501,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ loadingConversationId: conversationId, error: null });
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/conversations/${conversationId}/messages`,
       );
       const payload = await parseApiResponse<MessageListData>(response);
@@ -528,6 +526,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
         };
       });
     } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        set((state) => ({
+          loadingConversationId:
+            state.loadingConversationId === conversationId
+              ? null
+              : state.loadingConversationId,
+        }));
+        return;
+      }
+
       const message =
         error instanceof Error ? error.message : "加载消息失败，请稍后重试。";
 
@@ -599,13 +607,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     activeDisplayQueue = displayQueue;
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await apiFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversationId,
-          messages: toApiMessages([...previousMessages, userMessage]),
-        }),
+        body: JSON.stringify({ conversationId, content: trimmed }),
         signal: controller.signal,
       });
 
@@ -680,6 +685,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
         clearStreamingIfMatch(set, conversationId);
       }
     } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        displayQueue.cancel();
+        clearStreamingIfMatch(set, conversationId);
+        return;
+      }
+
       if (controller.signal.aborted) {
         displayQueue.flushSync();
         displayQueue.cancel();
@@ -768,7 +779,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     const toRemove = messages.slice(assistantIndex);
-    const historyForApi = toApiMessages(messages.slice(0, assistantIndex));
 
     set({ error: null });
 
@@ -808,7 +818,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await runAssistantStream(set, {
       conversationId,
       assistantMessageId: newAssistant.id,
-      apiMessages: historyForApi,
       onFinalize: (networkAssistantText) =>
         finalizeRegenerateRound(
           set,
@@ -864,7 +873,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
 
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/conversations/${conversationId}/messages/${messageId}`,
         { method: "DELETE" },
       );
@@ -876,6 +885,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       set({ deletingMessageId: null });
     } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        set({ deletingMessageId: null });
+        return;
+      }
+
       const message =
         error instanceof Error ? error.message : "删除消息失败，请稍后重试。";
       set((state) => {

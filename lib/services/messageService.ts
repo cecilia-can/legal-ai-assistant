@@ -66,15 +66,30 @@ export function decodeMessageCursor(cursor: string): CursorPayload {
   }
 }
 
-async function assertConversationExists(conversationId: string) {
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: conversationId },
+async function assertConversationOwnership(
+  conversationId: string,
+  userId: string,
+) {
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: conversationId, userId },
     select: { id: true },
   });
 
   if (!conversation) {
     throw new MessageServiceError("会话不存在。", "NOT_FOUND");
   }
+}
+
+export async function listConversationMessagesForChat(
+  conversationId: string,
+  userId: string,
+): Promise<MessageRecord[]> {
+  await assertConversationOwnership(conversationId, userId);
+
+  return prisma.message.findMany({
+    where: { conversationId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
 }
 
 /**
@@ -84,9 +99,10 @@ async function assertConversationExists(conversationId: string) {
  */
 export async function listMessages(
   conversationId: string,
+  userId: string,
   options: { limit: number; cursor?: string | null },
 ): Promise<ListMessagesResult> {
-  await assertConversationExists(conversationId);
+  await assertConversationOwnership(conversationId, userId);
 
   const limit = options.limit;
   const cursor = options.cursor?.trim() ? options.cursor.trim() : null;
@@ -135,18 +151,20 @@ export async function listMessages(
 
 export async function createMessage(
   conversationId: string,
+  userId: string,
   input: CreateMessageInput,
 ): Promise<MessageRecord> {
-  const [message] = await createMessages(conversationId, [input]);
+  const [message] = await createMessages(conversationId, userId, [input]);
   return message;
 }
 
 /** 同一事务内批量创建消息，避免只写入 user、assistant 丢失 */
 export async function createMessages(
   conversationId: string,
+  userId: string,
   inputs: CreateMessageInput[],
 ): Promise<MessageRecord[]> {
-  await assertConversationExists(conversationId);
+  await assertConversationOwnership(conversationId, userId);
 
   if (!inputs.length) {
     throw new MessageServiceError("messages 不能为空。", "BAD_REQUEST");
@@ -190,9 +208,10 @@ export async function createMessages(
 
 export async function deleteMessage(
   conversationId: string,
+  userId: string,
   messageId: string,
 ): Promise<void> {
-  await assertConversationExists(conversationId);
+  await assertConversationOwnership(conversationId, userId);
 
   const existing = await prisma.message.findUnique({
     where: { id: messageId },
