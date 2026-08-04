@@ -3,6 +3,7 @@ import {
   parseApiResponse,
   readApiMessage,
 } from "@/lib/api/api-response";
+import { apiFetch } from "@/lib/api/client-fetch";
 import type { ConversationJson } from "@/lib/api/conversation-response";
 import { parseConversationJson } from "@/lib/api/conversation-response";
 import type { Conversation } from "@/types/chat";
@@ -88,7 +89,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch("/api/conversations");
+      const response = await apiFetch("/api/conversations");
       const payload = await parseApiResponse<ConversationJson[]>(response);
 
       if (!response.ok || payload.code !== API_SUCCESS_CODE) {
@@ -109,6 +110,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         activeId: resolveActiveId(conversations, state.activeId),
       }));
     } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        set({ isLoading: false });
+        return;
+      }
+
       set({
         isLoading: false,
         error:
@@ -123,7 +129,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set({ error: null });
 
     try {
-      const response = await fetch("/api/conversations", {
+      const response = await apiFetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -153,6 +159,10 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
       return conversation.id;
     } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        return null;
+      }
+
       set({
         error:
           error instanceof Error
@@ -181,7 +191,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set({ deletingId: id, error: null });
 
     try {
-      const response = await fetch(`/api/conversations/${id}`, {
+      const response = await apiFetch(`/api/conversations/${id}`, {
         method: "DELETE",
       });
       const payload = await parseApiResponse<null>(response);
@@ -203,6 +213,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         removeConversationFromState(state.conversations, id, state.activeId),
       );
     } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        set({ deletingId: null });
+        return;
+      }
+
       set({
         error:
           error instanceof Error
@@ -223,7 +238,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     set({ error: null });
 
     try {
-      const response = await fetch(`/api/conversations/${id}`, {
+      const response = await apiFetch(`/api/conversations/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: trimmedTitle }),
@@ -250,6 +265,10 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
         error: null,
       }));
     } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        return;
+      }
+
       set({
         error:
           error instanceof Error

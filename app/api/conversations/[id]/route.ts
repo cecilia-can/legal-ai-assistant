@@ -1,12 +1,26 @@
 import { jsonError, jsonSuccess } from "@/lib/api/api-response";
 import { serializeConversation } from "@/lib/api/conversation-response";
+import { requireApiSession } from "@/lib/auth/require-api-session";
 import { prisma } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+async function findOwnedConversation(id: string, userId: string) {
+  return prisma.conversation.findFirst({
+    where: { id, userId },
+  });
+}
+
 export async function PATCH(request: Request, context: RouteContext) {
+  const session = await requireApiSession();
+  if (session.error) {
+    return session.error;
+  }
+
   const { id } = await context.params;
 
   try {
@@ -18,7 +32,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       return jsonError("标题不能为空。", 400);
     }
 
-    const existing = await prisma.conversation.findUnique({ where: { id } });
+    const existing = await findOwnedConversation(id, session.userId);
     if (!existing) {
       return jsonError("会话不存在。", 404);
     }
@@ -36,10 +50,15 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const session = await requireApiSession();
+  if (session.error) {
+    return session.error;
+  }
+
   const { id } = await context.params;
 
   try {
-    const existing = await prisma.conversation.findUnique({ where: { id } });
+    const existing = await findOwnedConversation(id, session.userId);
     if (!existing) {
       return jsonError("会话不存在。", 404);
     }

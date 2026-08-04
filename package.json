@@ -15,12 +15,15 @@
     "measure:markdown": "tsx scripts/benchmark-markdown-render.ts"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.3",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
     "highlight.js": "^11.11.1",
     "js-tiktoken": "^1.0.21",
     "lucide-react": "^1.27.0",
     "next": "16.2.9",
+    "next-auth": "^5.0.0-beta.30",
     "openai": "^6.49.0",
     "pg": "^8.22.0",
     "prisma": "^7.8.0",
@@ -29,10 +32,12 @@
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
+    "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",

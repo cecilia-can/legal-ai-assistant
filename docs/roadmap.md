@@ -8,7 +8,7 @@
 
 **目标**：实现一个类似 ChatGPT 的多轮对话系统
 
-**总体时间**：约 14-18 天
+**总体时间**：约 15-19 天
 
 **功能范围**：
 - 多会话管理
@@ -233,29 +233,41 @@
 | 维度 | 选择 | 理由 |
 |------|------|------|
 | 认证框架 | Auth.js v5（NextAuth）+ Prisma Adapter | 开源自建，与 App Router 深度集成，无第三方托管成本 |
-| 登录方式 | 邮箱密码（Credentials）+ OAuth（GitHub / Google） | Credentials 掌握哈希与会话原理，OAuth 提升实际体验 |
+| 登录方式 | 仅邮箱密码（Credentials）；OAuth 拆至 Change 1.9.1 | 先掌握哈希与会话原理，同时压缩本阶段范围与外部依赖 |
+| Session 策略 | JWT | Auth.js 的 Credentials Provider 不支持 database session；`Session` 表先建好但暂不启用 |
 | 隔离粒度 | 用户级：`Conversation` 归属 `userId` | 组织、团队协作与 RBAC 留到 Phase 5 案件工作空间 |
-| 授权位置 | DAL（`verifySession()`）为主，`proxy.ts` 仅做乐观重定向 | Next.js 官方推荐：安全校验贴近数据源，而非只靠路由层 |
+| 授权位置 | DAL（`verifySession()`）+ service 层强制 `userId`，`proxy.ts` 仅做乐观重定向 | Next.js 官方推荐：安全校验贴近数据源，而非只靠路由层 |
+| 对话历史来源 | 服务端按 `(conversationId, userId)` 从数据库读取 | 不信任客户端传入的 `messages`，杜绝伪造历史与越权消耗 token |
+
+**前置验证（spike，0.5 天）**：
+- 验证 `@auth/prisma-adapter` 能否配合本项目的 Prisma 7 组合工作：`provider = "prisma-client"` 新 ESM generator + 自定义 `output` + `@prisma/adapter-pg` 驱动适配器（官方示例基于旧的 `prisma-client-js`）
+- 确认 `next-auth` 版本对 Next.js 16 的 peer dependency，以及 `proxy.ts` 的导出写法
+- 若验证不通过，回退方案：按 Next.js 官方文档自建 `jose` + `cookies()` + DAL 的 session 方案
 
 **工作内容**：
-1. 安装配置 Auth.js v5，创建 `auth.ts` 与 `app/api/auth/[...nextauth]/route.ts`
+1. 安装配置 Auth.js v5（JWT session 策略），创建 `auth.ts`、`auth.config.ts` 与 `app/api/auth/[...nextauth]/route.ts`；`auth.config.ts` 不含 Prisma Adapter，供 `proxy.ts` 单独引入
 2. 扩展 Prisma Schema：新增 `User`、`Account`、`Session`、`VerificationToken` 四张 Auth.js 标准表；`Conversation` 增加 `userId` 外键与 `@@index([userId, updatedAt])`
 3. 实现 Credentials Provider：注册 Server Action + Zod 校验 + 密码哈希（bcrypt / argon2）
-4. 接入 OAuth Provider（GitHub、Google），配置回调地址与环境变量
-5. 建立数据访问层 `lib/auth/dal.ts`：`verifySession()` 用 React `cache` 去重，作为所有受保护数据请求的统一入口
-6. 改造现有 API：`/api/conversations`、`/api/conversations/[id]/messages`、`/api/chat` 全部按 `session.user.id` 过滤，未登录返回 401、越权返回 404
-7. 新增根目录 `proxy.ts`（Next.js 16 中间件的新名称），对未登录用户做路由级乐观重定向
-8. 实现登录 / 注册 / 登出页面与侧栏用户菜单
-9. 编写存量数据迁移脚本：为已有 `Conversation` 回填归属用户或清理
-10. 越权测试：跨用户读取、删除会话、向他人会话发消息均须被拒绝
+4. 建立数据访问层 `lib/auth/dal.ts`：`verifySession()` 用 React `cache` 去重，作为所有受保护数据请求的统一入口
+5. 改造 `lib/services/messageService.ts`：`assertConversationExists` 换成 `assertConversationOwnership(conversationId, userId)`；`listMessages` / `createMessage(s)` / `deleteMessage` 全部增加必填 `userId` 参数，用类型系统强制每个调用点传入身份
+6. 改造 `/api/conversations` 与 `/api/conversations/[id]/**`：按 `session.user.id` 过滤，未登录返回 401、越权返回 404；所有 GET 路由显式声明动态渲染，避免响应被缓存导致跨用户泄漏
+7. 改造 `/api/chat`：先校验 `(conversationId, userId)` 归属，再从数据库读取历史交给 `buildModelMessages()`，客户端只传本轮新消息
+8. 新增 per-user 速率限制（每分钟请求数 + 每日 token 配额），复用 `lib/ai/chatUsageLog.ts` 的统计口径
+9. 新增根目录 `proxy.ts`（Next.js 16 中间件的新名称），对未登录用户做基于 Cookie 的乐观重定向
+10. 实现登录 / 注册 / 登出页面与侧栏用户菜单，复用 Change 1.8 的 `Skeleton` 与 `InlineError`
+11. 前端统一 401 处理：在 `chatStore` / `conversationStore` 的响应解析层区分「可重试错误」与「需重新登录」，后者跳登录页而非展示红字；流式过程中 session 失效需终止 SSE 并提示
+12. 存量数据处理：清库重建（当前无真实用户数据，不写回填脚本）
+13. 自动化越权测试：A 用户读取 / 改名 / 删除 B 的会话、向 B 的会话发消息、伪造 `conversationId` 打 `/api/chat`，逐条断言状态码
 
 **交付物**：
-- `auth.ts`、`app/api/auth/[...nextauth]/route.ts` - Auth.js 配置与路由
+- `auth.ts`、`auth.config.ts`、`app/api/auth/[...nextauth]/route.ts` - Auth.js 配置与路由
 - `lib/auth/dal.ts` - 会话校验与数据访问层
 - `proxy.ts` - 路由级乐观鉴权
 - `app/(auth)/login/page.tsx`、`app/(auth)/register/page.tsx` - 认证页面
 - `prisma/migrations/*_add_user_auth` - 用户表与 `userId` 外键迁移
-- 越权访问测试用例与安全检查清单
+- `lib/ai/rateLimit.ts`（或等价）- per-user 限流
+- `scripts/verify-tenant-isolation.ts` - 自动化越权测试脚本
+- 安全检查清单
 
 **依赖关系**：
 - Change 1.3（会话管理 API）
@@ -263,10 +275,39 @@
 - Change 1.8（UX 优化，登录页复用加载状态与错误提示组件）
 
 **风险与注意点**：
-- Next.js 16 已将 `middleware.ts` 更名为 `proxy.ts` 且运行在 Node.js 运行时，实施前需确认所选 Auth.js 版本的兼容性
-- `proxy.ts` 只做基于 Cookie 的乐观检查，真正的授权判断必须下沉到 DAL 与 Route Handler，否则 Server Action 等入口会绕过校验
-- 存量会话没有归属，迁移前需先决定「全部划归首个账号」还是「清库重建」
+- Auth.js 的 Credentials Provider 不支持 database session 策略，本阶段固定使用 JWT；`Session` 表建好但暂不启用，等 1.9.1 接 OAuth 时再决定是否切换
+- `@auth/prisma-adapter` 与本项目的新 generator + 驱动适配器组合未经验证，必须先做 spike 再写实现
+- `next-auth` 早期版本对 Next.js 16 的 peer dependency 会导致安装失败；`proxy.ts` 必须使用 `proxy` 命名导出或 default 导出，Auth.js 文档里 `export { auth as middleware }` 的写法在 Next 16 上失效
+- `proxy.ts` 只做基于 Cookie 的乐观检查，真正的授权判断必须下沉到 DAL 与 service 层，否则 Server Action 等入口会绕过校验
+- 仅「按 session 过滤」不足以保护 `/api/chat`：只要历史由客户端提供，已登录用户仍可伪造历史并消耗 token，必须改为服务端取历史
+- `Message` 表不带 `userId`、靠 join `Conversation` 判断归属，因此所有消息读写必须经过 `assertConversationOwnership`，漏一个调用点即越权
 - Phase 2 起新增的 `Document`、`Case` 等表应从建表起就带 `userId`，避免二次迁移
+
+---
+
+### Change 1.9.1：OAuth 第三方登录
+
+**时间估算**：1 天
+
+**目标**：
+在已有用户体系之上接入 GitHub / Google 登录，降低注册门槛。从 Change 1.9 拆出，避免核心鉴权与外部 Provider 配置互相阻塞。
+
+**工作内容**：
+1. 注册 GitHub / Google OAuth 应用，配置回调地址与 `AUTH_*` 环境变量
+2. 在 `auth.config.ts` 接入两个 Provider，启用 `Account` 表
+3. 决定 session 策略是否从 JWT 切换到 database session
+4. 处理同邮箱多 Provider 的账号关联策略（自动关联 / 拒绝 / 提示绑定）
+5. 登录页增加第三方登录入口
+
+**交付物**：
+- OAuth Provider 配置与 `.env.example` 更新
+- 账号关联策略说明文档
+
+**依赖关系**：Change 1.9
+
+**风险与注意点**：
+- Credentials 与 OAuth 混用时的 session 策略需一次定清，中途切换会使已登录用户全部失效
+- 生产环境回调地址与本地开发不同，需在两个 Provider 后台分别配置
 
 ---
 
@@ -276,7 +317,7 @@
 
 **总体时间**：约 15-20 天
 
-**前置条件**：Phase 1 完成（含 Change 1.9 鉴权与数据隔离——文档、向量数据须从建表起带用户归属）
+**前置条件**：Phase 1 完成（含 Change 1.9 鉴权与数据隔离——文档、向量数据须从建表起带用户归属；Change 1.9.1 OAuth 可选）
 
 ---
 
@@ -692,13 +733,13 @@
 
 | Phase | 名称 | 时间估算 | 累计时间 |
 |-------|------|----------|----------|
-| Phase 1 | ChatBot + 鉴权 | 14-18 天 | 14-18 天 |
-| Phase 2 | 法律知识库（RAG） | 15-20 天 | 29-38 天 |
-| Phase 3 | 合同审查 | 12-15 天 | 41-53 天 |
-| Phase 4 | 案件分析 Agent | 18-22 天 | 59-75 天 |
-| Phase 5 | 案件工作空间 | 20-25 天 | 79-100 天 |
+| Phase 1 | ChatBot + 鉴权 | 15-19 天 | 15-19 天 |
+| Phase 2 | 法律知识库（RAG） | 15-20 天 | 30-39 天 |
+| Phase 3 | 合同审查 | 12-15 天 | 42-54 天 |
+| Phase 4 | 案件分析 Agent | 18-22 天 | 60-76 天 |
+| Phase 5 | 案件工作空间 | 20-25 天 | 80-101 天 |
 
-**总计**：约 79-100 个工作日（约 4-5 个月）
+**总计**：约 80-101 个工作日（约 4-5 个月）
 
 ---
 

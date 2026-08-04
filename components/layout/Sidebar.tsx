@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { PanelLeftClose, X } from "lucide-react";
+import { UserMenu } from "@/components/auth/UserMenu";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 
@@ -47,6 +48,7 @@ export function Sidebar({ children, onNewChat, onClose, onCollapse }: SidebarPro
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <UserMenu />
     </aside>
   );
 }
