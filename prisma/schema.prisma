@@ -11,18 +11,20 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  name          String?
-  email         String         @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  oauthLinkIntents OAuthLinkIntent[]
-  conversations Conversation[]
+  id                String            @id @default(cuid())
+  name              String?
+  email             String            @unique
+  emailVerified     DateTime?
+  image             String?
+  password          String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  accounts          Account[]
+  sessions          Session[]
+  oauthLinkIntents  OAuthLinkIntent[]
+  conversations     Conversation[]
+  knowledgeBases    KnowledgeBase[]   @relation("KnowledgeBaseOwner")
+  uploadedDocuments Document[]        @relation("DocumentUploader")
 }
 
 model Account {
@@ -59,23 +61,23 @@ model VerificationToken {
 }
 
 model OAuthLinkIntent {
-  id                String   @id @default(cuid())
-  tokenHash         String   @unique
+  id                String    @id @default(cuid())
+  tokenHash         String    @unique
   userId            String
   email             String
   provider          String
   providerAccountId String
   type              String
-  refreshToken      String?  @map("refresh_token") @db.Text
-  accessToken       String?  @map("access_token") @db.Text
-  expiresAt         Int?     @map("expires_at")
-  tokenType         String?  @map("token_type")
+  refreshToken      String?   @map("refresh_token") @db.Text
+  accessToken       String?   @map("access_token") @db.Text
+  expiresAt         Int?      @map("expires_at")
+  tokenType         String?   @map("token_type")
   scope             String?
-  idToken           String?  @map("id_token") @db.Text
-  sessionState      String?  @map("session_state")
+  idToken           String?   @map("id_token") @db.Text
+  sessionState      String?   @map("session_state")
   expires           DateTime
   usedAt            DateTime?
-  createdAt         DateTime @default(now())
+  createdAt         DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -104,4 +106,82 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+}
+
+model KnowledgeBase {
+  id        String     @id @default(cuid())
+  name      String
+  scope     String     @default("user")
+  ownerId   String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  owner     User?      @relation("KnowledgeBaseOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([ownerId, updatedAt])
+  @@index([scope, updatedAt])
+}
+
+model Document {
+  id                   String          @id @default(cuid())
+  knowledgeBaseId      String
+  uploadedByUserId     String?
+  originalFilename     String
+  title                String?
+  sourceIdentifier     String
+  sourceUri            String?         @db.Text
+  sourceType           String
+  category             String?
+  documentVersion      String?
+  contentHash          String
+  status               String          @default("pending")
+  errorMessage         String?         @db.Text
+  parserVersion        String?
+  normalizationVersion String?
+  publishedAt          DateTime?
+  effectiveAt          DateTime?
+  metadata             Json?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  knowledgeBase        KnowledgeBase   @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  uploadedBy           User?           @relation("DocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  chunks               DocumentChunk[]
+
+  @@unique([knowledgeBaseId, sourceIdentifier, contentHash])
+  @@index([knowledgeBaseId, updatedAt])
+  @@index([status, updatedAt])
+  @@index([category, updatedAt])
+}
+
+model DocumentChunk {
+  id                   String      @id @default(cuid())
+  documentId           String
+  ordinal              Int
+  text                 String      @db.Text
+  sectionPath          String?
+  locator              Json?
+  pageFrom             Int?
+  pageTo               Int?
+  contentHash          String
+  chunkStrategyVersion String
+  createdAt            DateTime    @default(now())
+  document             Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embeddings           Embedding[]
+
+  @@unique([documentId, ordinal])
+  @@index([documentId, createdAt])
+}
+
+model Embedding {
+  id          String                 @id @default(cuid())
+  chunkId     String
+  model       String
+  dimensions  Int
+  contentHash String
+  vector      Unsupported("vector")?
+  createdAt   DateTime               @default(now())
+  chunk       DocumentChunk          @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@unique([chunkId, model, contentHash])
+  @@index([model, dimensions])
 }
