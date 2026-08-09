@@ -7,14 +7,18 @@ import { AuthFormShell } from "@/components/auth/AuthFormShell";
 import { Button } from "@/components/ui/Button";
 import { InlineError } from "@/components/ui/InlineError";
 import { loginAction, type AuthFormState } from "@/lib/auth/actions";
+import { OAuthButtons } from "@/components/auth/OAuthButtons";
+import type { OAuthProviderId } from "@/lib/auth/oauth";
 
 function fieldError(errors: string[] | undefined) {
   return errors?.[0] ?? null;
 }
 
-export function LoginForm() {
+export function LoginForm({ oauthProviders = [] }: { oauthProviders?: OAuthProviderId[] }) {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
+  const oauthError = searchParams.get("error");
+  const linkToken = searchParams.get("linkToken");
   const [state, action, pending] = useActionState<AuthFormState, FormData>(
     loginAction,
     {},
@@ -38,6 +42,24 @@ export function LoginForm() {
 
         {state.message ? (
           <InlineError message={state.message} />
+        ) : null}
+
+        {oauthError === "OAuthAccountNotLinked" ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <p>该邮箱已经注册过账号，请先验证原账号后绑定第三方登录。</p>
+            {linkToken ? (
+              <Link
+                href={`/login/link?token=${encodeURIComponent(linkToken)}`}
+                className="mt-2 inline-block font-medium underline"
+              >
+                验证并绑定当前账号
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+
+        {oauthError === "OAuthLinkUnavailable" ? (
+          <InlineError message="暂时无法创建账号绑定流程，请稍后重试或使用邮箱密码登录。" />
         ) : null}
 
         <label className="flex flex-col gap-2 text-sm">
@@ -74,6 +96,7 @@ export function LoginForm() {
           {pending ? "登录中…" : "登录"}
         </Button>
       </form>
+      <OAuthButtons providers={oauthProviders} callbackUrl={callbackUrl} />
     </AuthFormShell>
   );
 }

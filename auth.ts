@@ -5,6 +5,7 @@ import { compare } from "bcryptjs";
 import { z } from "zod";
 import authConfig from "@/auth.config";
 import { prisma } from "@/lib/db";
+import { createOAuthLinkIntent } from "@/lib/auth/oauth-link";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -15,6 +16,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
   providers: [
+    ...authConfig.providers,
     Credentials({
       name: "credentials",
       credentials: {
@@ -49,4 +51,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    ...authConfig.callbacks,
+    async signIn({ account, user }) {
+      if (!account || account.provider === "credentials" || !user.email) {
+        return true;
+      }
+
+      const linkedAccount = await prisma.account.findUnique({
+        where: {
+          provider_providerAccountId: {
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+          },
+        },
+      });
+      if (linkedAccount) return true;
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email: user.email.toLowerCase() },
+        select: { id: true },
+      });
+      if (existingUser && existingUser.id !== user.id) {
+        try {
+          const linkToken = await createOAuthLinkIntent({
+            userId: existingUser.id,
+            email: user.email,
+            account,
+          });
+
+          return `/login?error=OAuthAccountNotLinked&linkToken=${encodeURIComponent(linkToken)}`;
+        } catch (error) {
+          console.error("OAuth account linking intent creation failed:", error);
+          return "/login?error=OAuthLinkUnavailable";
+        }
+      }
+      return true;
+    },
+  },
 });

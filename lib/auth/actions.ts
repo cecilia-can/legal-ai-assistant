@@ -6,6 +6,8 @@ import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import type { OAuthProviderId } from "@/lib/auth/oauth";
+import { verifyAndConsumeOAuthLinkIntent } from "@/lib/auth/oauth-link";
 
 const RegisterSchema = z.object({
   name: z.string().trim().min(1, "姓名不能为空。").max(64),
@@ -124,4 +126,81 @@ export async function loginAction(
 export async function logoutAction() {
   const { signOut } = await import("@/auth");
   await signOut({ redirectTo: "/login" });
+}
+
+export async function oauthSignInAction(
+  _prevState: AuthFormState | undefined,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const provider = formData.get("provider");
+  if (provider !== "github" && provider !== "google") {
+    return { message: "不支持的第三方登录方式。" };
+  }
+
+  const callbackUrl = formData.get("callbackUrl");
+  const redirectTo =
+    typeof callbackUrl === "string" && callbackUrl.trim()
+      ? callbackUrl.trim()
+      : "/";
+
+  try {
+    await signIn(provider as OAuthProviderId, { redirectTo });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { message: "第三方登录失败，请重试或使用邮箱密码登录。" };
+    }
+    throw error;
+  }
+
+  return {};
+}
+
+const LinkOAuthAccountSchema = z.object({
+  token: z.string().min(20),
+  password: z.string().min(1, "Password is required."),
+});
+
+export async function linkOAuthAccountAction(
+  _prevState: AuthFormState | undefined,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const validated = LinkOAuthAccountSchema.safeParse({
+    token: formData.get("token"),
+    password: formData.get("password"),
+  });
+
+  if (!validated.success) {
+    return {
+      errors: validated.error.flatten().fieldErrors,
+    };
+  }
+
+  const linkedAccount = await verifyAndConsumeOAuthLinkIntent({
+    token: validated.data.token,
+    password: validated.data.password,
+  });
+
+  if (!linkedAccount) {
+    return {
+      message: "绑定验证失败或链接已过期，请重新使用 GitHub / Google 登录。",
+    };
+  }
+
+  try {
+    await signIn("credentials", {
+      email: linkedAccount.email,
+      password: validated.data.password,
+      redirectTo: "/",
+    });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return {
+        message: "账号已绑定，但自动登录失败，请返回登录页使用邮箱密码登录。",
+      };
+    }
+
+    throw error;
+  }
+
+  redirect("/");
 }
