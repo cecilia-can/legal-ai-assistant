@@ -88,6 +88,26 @@ npx prisma migrate dev
 npm run dev
 ```
 
+### Phase 2 本地知识库数据库
+
+Phase 2 使用 PostgreSQL + pgvector 保存法律知识库和文档向量。项目的
+`docker-compose.yml` 已使用 `pgvector/pgvector:pg17` 镜像；首次使用或更换数据库
+时，Prisma migration 会通过 `CREATE EXTENSION IF NOT EXISTS vector` 创建 pgvector
+扩展。
+
+```powershell
+npm run db:up
+npx prisma migrate dev
+npx prisma generate
+```
+
+当前 Change 2.1 只建立知识库、文档、文档切片和 Embedding 数据模型，不会导入
+原始资料或批量调用 Embedding 服务。向量索引和实际向量化在后续 Change 中完成。
+
+如果本机已经存在名为 `legal-ai-postgres` 的容器，应先确认它使用
+`pgvector/pgvector:pg17` 且端口映射到 5432；不要为解决容器名称冲突而删除或重置
+包含用户数据的数据库。
+
 ---
 
 ## 三、方案 B：Docker 自托管（后续可选）
