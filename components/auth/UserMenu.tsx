@@ -1,38 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 export function UserMenu() {
   const { data: session, status, update } = useSession();
-  const [hasSynced, setHasSynced] = useState(() => Boolean(session?.user));
+  const refreshRequested = useRef(false);
 
   useEffect(() => {
-    if (session?.user) {
-      setHasSynced(true);
+    if (status !== "unauthenticated" || refreshRequested.current) {
       return;
     }
 
-    if (hasSynced) {
-      return;
-    }
+    refreshRequested.current = true;
+    void update();
+  }, [status, update]);
 
-    let cancelled = false;
-
-    void update().finally(() => {
-      if (!cancelled) {
-        setHasSynced(true);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.user, update, hasSynced]);
-
-  if (status === "loading" || (!session?.user && !hasSynced)) {
+  if (status === "loading") {
     return (
       <div className="border-t border-border px-4 py-3">
         <p className="text-xs text-muted">加载用户信息…</p>

@@ -34,6 +34,19 @@
 
 - [ ] `npx tsx scripts/verify-tenant-isolation.ts` 通过
 
+## OAuth（Change 1.9.1，可选）
+
+- [ ] 配置 GitHub 后，登录页显示 GitHub 按钮，回调地址为 `/api/auth/callback/github`
+- [ ] 配置 Google 后，登录页显示 Google 按钮，回调地址为 `/api/auth/callback/google`
+- [ ] 未配置 Provider 时，邮箱密码登录仍可用，页面不显示未配置按钮
+- [ ] OAuth 登录成功后可创建会话，且只能看到当前用户的会话
+- [ ] OAuth 邮箱与已有 Credentials 账号相同时，不会静默合并，页面显示账号关联提示
+- [ ] OAuth 邮箱与已有 Credentials 账号冲突时，点击“验证并绑定当前账号”进入 `/login/link`
+- [ ] 在绑定页输入正确的原账号密码后，GitHub / Google 账号写入同一用户的 `Account` 记录并进入聊天页
+- [ ] 绑定页输入错误密码、使用过期链接或重复提交时，不创建或修改 `Account` 绑定
+- [ ] 绑定成功后再次使用同一个 OAuth 账号登录，直接进入原账号的聊天页
+- [ ] 取消授权或 Provider 返回错误时，登录页显示可理解的失败提示
+
 ## 构建
 
 - [ ] `npm run lint`

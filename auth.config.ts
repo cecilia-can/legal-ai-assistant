@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth";
+import { getOAuthProviders } from "@/lib/auth/oauth";
 
 export default {
   pages: {
@@ -7,7 +8,7 @@ export default {
   session: {
     strategy: "jwt",
   },
-  providers: [],
+  providers: getOAuthProviders(),
   callbacks: {
     jwt({ token, user }) {
       if (user) {

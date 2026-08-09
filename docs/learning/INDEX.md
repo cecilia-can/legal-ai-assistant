@@ -17,6 +17,7 @@
 | 1.6 Markdown 渲染性能调研 | [1.6面试文档/1.6-markdown-rendering-performance-investigation.md](./1.6面试文档/1.6-markdown-rendering-performance-investigation.md) | — | 2026-07-28 |
 | 1.7 Prompt 工程：上下文与安全 | [1.7面试文档/1.7-prompt-engineering-context-and-security.md](./1.7面试文档/1.7-prompt-engineering-context-and-security.md) | 10 | 2026-07-29 |
 | 1.9 登录后会话客户端不同步 | [1.9面试文档/1.9-login-session-client-sync.md](./1.9面试文档/1.9-login-session-client-sync.md) | — | 2026-08-02 |
+| 1.9.1 OAuth 第三方登录 | [1.9.1-oauth-provider.md](./1.9.1-oauth-provider.md) | 10 | 2026-08-08 |
 | 1.4 聊天列表滚动与回到底部 | [1.4面试文档/1.4-chat-scroll-ux.md](./1.4面试文档/1.4-chat-scroll-ux.md) | — | 2026-07-26 |
 | 1.4 流式观感与展示队列 | [1.4面试文档/1.4-streaming-typewriter-ux.md](./1.4面试文档/1.4-streaming-typewriter-ux.md) | — | 2026-07-27 |
 | 1.4 流式 UI 状态不同步修复 | [1.4面试文档/1.4-streaming-ui-state-desync.md](./1.4面试文档/1.4-streaming-ui-state-desync.md) | — | 2026-07-30 |
