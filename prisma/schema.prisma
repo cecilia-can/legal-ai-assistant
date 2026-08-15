@@ -138,6 +138,13 @@ model Document {
   errorMessage         String?         @db.Text
   parserVersion        String?
   normalizationVersion String?
+  normalizedUri        String?         @db.Text
+  normalizedContentHash String?
+  extractionMethod     String?
+  ocrEngine            String?
+  ocrVersion           String?
+  ocrLanguages         String?
+  ocrConfidence        Float?
   publishedAt          DateTime?
   effectiveAt          DateTime?
   metadata             Json?

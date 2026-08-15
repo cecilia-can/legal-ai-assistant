@@ -20,6 +20,7 @@
 | 1.9.1 OAuth 第三方登录 | [1.9.1-oauth-provider.md](./1.9.1-oauth-provider.md) | 10 | 2026-08-08 |
 | 2.1 知识库数据模型与向量基础设施 | [2.1-knowledge-base-foundation.md](./2.1-knowledge-base-foundation.md) | 5 | 2026-08-09 |
 | 2.1 知识库基础设施面试追问 | [2.1面试文档/2.1-knowledge-base-foundation-interview.md](./2.1面试文档/2.1-knowledge-base-foundation-interview.md) | 20 | 2026-08-09 |
+| 2.2 多格式文档导入与规范化 | [2.2-document-import-normalization.md](./2.2-document-import-normalization.md) | 6 | 2026-08-15 |
 | 1.4 聊天列表滚动与回到底部 | [1.4面试文档/1.4-chat-scroll-ux.md](./1.4面试文档/1.4-chat-scroll-ux.md) | — | 2026-07-26 |
 | 1.4 流式观感与展示队列 | [1.4面试文档/1.4-streaming-typewriter-ux.md](./1.4面试文档/1.4-streaming-typewriter-ux.md) | — | 2026-07-27 |
 | 1.4 流式 UI 状态不同步修复 | [1.4面试文档/1.4-streaming-ui-state-desync.md](./1.4面试文档/1.4-streaming-ui-state-desync.md) | — | 2026-07-30 |

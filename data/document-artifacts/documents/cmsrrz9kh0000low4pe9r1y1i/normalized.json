@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "document-normalized-v1",
+  "sourceType": "pdf",
+  "extractionMethod": "ocr",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "text": "《 eee 从 URL 到 像素: 浏览 器底层原理与 eS te (面试收藏级 ) 原创 _ Coding 沉思 录 Coding 沅 思 录 2026 年 8 月 8 日 07:00 上 海 (OME 2 iy af i 33 2g 2 (2 - 3 : Event 面试 官微笑着问: 浏览 器输入 URL 到 页 面 显示,发生了什么 ?」 大 多数 人 能答 到 DNS +TCP, 真 正能讲 到 合成 线程和 GPU 光栅 化 的 , 面 过 500 人 里 不 超过 10 个。 今天 这 篇 ,带你从进程 架构 讲 到像素 合成 ,把 这道 经 典题的满分答案 彻底 吃透 。 @ 这 篇 文章 解决 什么 问题 浏览 器是 前端 工 程 师 每 天 打交道 的 「黑 盒|]。你 知 道 怎么 用 Chrome DevTools, 但 不 一 定 知 道 DevTools 背后 发 生 了 什么 。 - Codingi BR 1 ~ ig 33 扫描 全能王- 3 亿 人 都在用 的 扫描 App",
+      "blocks": [
+        {
+          "kind": "text",
+          "text": "《 eee 从 URL 到 像素: 浏览 器底层原理与 eS te (面试收藏级 ) 原创 _ Coding 沉思 录 Coding 沅 思 录 2026 年 8 月 8 日 07:00 上 海 (OME 2 iy af i 33 2g 2 (2 - 3 : Event 面试 官微笑着问: 浏览 器输入 URL 到 页 面 显示,发生了什么 ?」 大 多数 人 能答 到 DNS +TCP, 真 正能讲 到 合成 线程和 GPU 光栅 化 的 , 面 过 500 人 里 不 超过 10 个。 今天 这 篇 ,带你从进程 架构 讲 到像素 合成 ,把 这道 经 典题的满分答案 彻底 吃透 。 @ 这 篇 文章 解决 什么 问题 浏览 器是 前端 工 程 师 每 天 打交道 的 「黑 盒|]。你 知 道 怎么 用 Chrome DevTools, 但 不 一 定 知 道 DevTools 背后 发 生 了 什么 。 - Codingi BR 1 ~ ig 33 扫描 全能王- 3 亿 人 都在用 的 扫描 App",
+          "locator": "page:1"
+        }
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "text": "22:59 @ BX 同名 Su Co): 这 篇 文章 覆盖 : EL 。 浏览器 4 大 进程 的 分 工 与 通信,单 进程 vs 多 进程 架构 演变 。 URL 到 首 字 节 : DNS 解析 、TCP 三 次 握手 、 HTTP 发 展 历程 、 浏 览 器 缓存 策略 e V8 如何 把 JavaScript 跑 起来 (Parse 一 Bytecode — JIT) 。 事件 循 环 、宏 任务 、微 任务“和 演 染 帧 的真实 关系 。 演 染流水线 13 步 ,从 ATML 字 节流 到屏幕 上 的 像素 © Reflow / Repaint / Composite 的代价 对 tk, DAR transform 为 何不触发 重 排 读 完 之 后 , 你既惟 原理 ,也 知道 面试 怎么答 。 BE: 浏览 器 进程 架构 一 一 为 什么 Tab 衣 了 不 影响别人 从 单 进程 到 多 进程的党 变 2008 年 之 前 ,浏 览器几乎都 是 单 进程 架构 一 一所 有 功能 模块 CUBE. JS 引擎 、 揪 件、 网 络) 跑 在 同一 个进程 里 : -Coding 沉思 录 i. ~ 7 了 33 @Gsawece 3 亿 人 都在用 的 扫描 App",
+      "blocks": [
+        {
+          "kind": "text",
+          "text": "22:59 @ BX 同名 Su Co): 这 篇 文章 覆盖 : EL 。 浏览器 4 大 进程 的 分 工 与 通信,单 进程 vs 多 进程 架构 演变 。 URL 到 首 字 节 : DNS 解析 、TCP 三 次 握手 、 HTTP 发 展 历程 、 浏 览 器 缓存 策略 e V8 如何 把 JavaScript 跑 起来 (Parse 一 Bytecode — JIT) 。 事件 循 环 、宏 任务 、微 任务“和 演 染 帧 的真实 关系 。 演 染流水线 13 步 ,从 ATML 字 节流 到屏幕 上 的 像素 © Reflow / Repaint / Composite 的代价 对 tk, DAR transform 为 何不触发 重 排 读 完 之 后 , 你既惟 原理 ,也 知道 面试 怎么答 。 BE: 浏览 器 进程 架构 一 一 为 什么 Tab 衣 了 不 影响别人 从 单 进程 到 多 进程的党 变 2008 年 之 前 ,浏 览器几乎都 是 单 进程 架构 一 一所 有 功能 模块 CUBE. JS 引擎 、 揪 件、 网 络) 跑 在 同一 个进程 里 : -Coding 沉思 录 i. ~ 7 了 33 @Gsawece 3 亿 人 都在用 的 扫描 App",
+          "locator": "page:2"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "sourceUri": "../test1.pdf",
+    "sourceIdentifier": "../test1.pdf",
+    "pdfPageClassification": "text",
+    "ocrEngine": "ocrmypdf+tesseract",
+    "ocrVersion": "17.10.0",
+    "ocrLanguages": "chi_sim+eng",
+    "ocrConfidence": null
+  }
+}
