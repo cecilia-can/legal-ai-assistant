@@ -3,7 +3,6 @@
 import { Check, Copy } from "lucide-react";
 import {
   useCallback,
-  useMemo,
   useRef,
   useState,
   memo,
@@ -106,19 +105,20 @@ function MarkdownTable({
   );
 }
 
+// 解析插件和组件映射不依赖单条消息内容。置于模块级可避免每次消息挂载时重建配置，
+// 同时保留 MessageContent 的 memo，以跳过仍在可视窗口内的相同内容重渲染。
+const markdownComponents = {
+  a: MarkdownLink,
+  pre: CodeBlockPre,
+  code: MarkdownCode,
+  table: MarkdownTable,
+};
+const markdownRemarkPlugins = [remarkGfm];
+const markdownRehypePlugins = [rehypeHighlight];
+
 export const MessageContent = memo(function MessageContent({
   content,
 }: MessageContentProps) {
-  const components = useMemo(
-    () => ({
-      a: MarkdownLink,
-      pre: CodeBlockPre,
-      code: MarkdownCode,
-      table: MarkdownTable,
-    }),
-    [],
-  );
-
   if (!content) {
     return null;
   }
@@ -126,9 +126,9 @@ export const MessageContent = memo(function MessageContent({
   return (
     <div className="markdown-body">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
-        components={components}
+        remarkPlugins={markdownRemarkPlugins}
+        rehypePlugins={markdownRehypePlugins}
+        components={markdownComponents}
       >
         {content}
       </ReactMarkdown>

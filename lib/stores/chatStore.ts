@@ -26,10 +26,17 @@ interface ChatState {
   streamingConversationId: string | null;
   /** 正在从 API 加载历史的会话 ID */
   loadingConversationId: string | null;
+  /** 正在加载更早历史消息的会话 ID */
+  loadingOlderConversationId: string | null;
+  /** 按会话保存更早消息的分页游标；null 表示没有更多历史 */
+  nextCursorByConversation: Record<string, string | null>;
+  /** 加载更早历史失败时的独立错误，避免覆盖发送/初始加载错误 */
+  olderMessagesError: string | null;
   /** 正在删除的消息 ID */
   deletingMessageId: string | null;
   error: string | null;
   loadMessages: (conversationId: string) => Promise<void>;
+  loadOlderMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, content: string) => Promise<void>;
   abortStream: () => void;
   regenerateMessage: (
@@ -486,6 +493,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messagesByConversation: {},
   streamingConversationId: null,
   loadingConversationId: null,
+  loadingOlderConversationId: null,
+  nextCursorByConversation: {},
+  olderMessagesError: null,
   deletingMessageId: null,
   error: null,
 
@@ -510,7 +520,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         throw new Error(readApiMessage(payload, "加载消息失败，请稍后重试。"));
       }
 
-      const items = payload.data.items.map(toChatMessage);
+      const data = payload.data;
+      const items = data.items.map(toChatMessage);
 
       set((state) => {
         if (Object.hasOwn(state.messagesByConversation, conversationId)) {
@@ -521,6 +532,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           messagesByConversation: {
             ...state.messagesByConversation,
             [conversationId]: items,
+          },
+          nextCursorByConversation: {
+            ...state.nextCursorByConversation,
+            [conversationId]: data.nextCursor,
           },
           loadingConversationId: null,
         };
@@ -545,6 +560,73 @@ export const useChatStore = create<ChatState>((set, get) => ({
           state.loadingConversationId === conversationId
             ? null
             : state.loadingConversationId,
+      }));
+    }
+  },
+
+  loadOlderMessages: async (conversationId) => {
+    const cursor = get().nextCursorByConversation[conversationId];
+    if (!cursor || get().loadingOlderConversationId === conversationId) {
+      return;
+    }
+
+    set({ loadingOlderConversationId: conversationId, olderMessagesError: null });
+
+    try {
+      const params = new URLSearchParams({ cursor });
+      const response = await apiFetch(
+        `/api/conversations/${conversationId}/messages?${params.toString()}`,
+      );
+      const payload = await parseApiResponse<MessageListData>(response);
+
+      if (!response.ok || payload.code !== API_SUCCESS_CODE || !payload.data) {
+        throw new Error(readApiMessage(payload, "加载更早消息失败，请稍后重试。"));
+      }
+
+      const data = payload.data;
+      const olderItems = data.items.map(toChatMessage);
+
+      set((state) => {
+        const current = state.messagesByConversation[conversationId] ?? [];
+        const existingIds = new Set(current.map((message) => message.id));
+        const uniqueOlderItems = olderItems.filter(
+          (message) => !existingIds.has(message.id),
+        );
+
+        return {
+          messagesByConversation: {
+            ...state.messagesByConversation,
+            [conversationId]: [...uniqueOlderItems, ...current],
+          },
+          nextCursorByConversation: {
+            ...state.nextCursorByConversation,
+            [conversationId]: data.nextCursor,
+          },
+          loadingOlderConversationId: null,
+          olderMessagesError: null,
+          error: null,
+        };
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message === "UNAUTHORIZED") {
+        set((state) => ({
+          loadingOlderConversationId:
+            state.loadingOlderConversationId === conversationId
+              ? null
+              : state.loadingOlderConversationId,
+        }));
+        return;
+      }
+
+      set((state) => ({
+        olderMessagesError:
+          error instanceof Error
+            ? error.message
+            : "加载更早消息失败，请稍后重试。",
+        loadingOlderConversationId:
+          state.loadingOlderConversationId === conversationId
+            ? null
+            : state.loadingOlderConversationId,
       }));
     }
   },
@@ -913,12 +995,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       const next = { ...state.messagesByConversation };
       delete next[conversationId];
-      return { messagesByConversation: next };
+      const nextCursors = { ...state.nextCursorByConversation };
+      delete nextCursors[conversationId];
+
+      return {
+        messagesByConversation: next,
+        nextCursorByConversation: nextCursors,
+      };
     });
   },
 
   clearError: () => {
-    set({ error: null });
+    set({ error: null, olderMessagesError: null });
   },
 
   seedEmptyConversation: (conversationId) => {
@@ -931,6 +1019,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messagesByConversation: {
           ...state.messagesByConversation,
           [conversationId]: [],
+        },
+        nextCursorByConversation: {
+          ...state.nextCursorByConversation,
+          [conversationId]: null,
         },
       };
     });
