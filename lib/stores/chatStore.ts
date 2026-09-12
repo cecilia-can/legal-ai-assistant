@@ -9,6 +9,7 @@ import {
   readApiMessage,
 } from "@/lib/api/api-response";
 import { apiFetch } from "@/lib/api/client-fetch";
+import { retryTransientNotFound } from "@/lib/api/retry";
 import { consumeSseStream } from "@/lib/api/sse";
 import { createDisplayQueue } from "@/lib/streaming/displayQueue";
 import type {
@@ -154,16 +155,20 @@ async function postPersistedRound(
   userContent: string,
   assistantContent: string,
 ): Promise<{ user: MessageJson; assistant: MessageJson }> {
-  const response = await apiFetch(`/api/conversations/${conversationId}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messages: [
-        { role: "user", content: userContent },
-        { role: "assistant", content: assistantContent },
-      ],
-    }),
-  });
+  const response = await retryTransientNotFound(
+    () =>
+      apiFetch(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { role: "user", content: userContent },
+            { role: "assistant", content: assistantContent },
+          ],
+        }),
+      }),
+    (candidate) => candidate.status === 404,
+  );
 
   const payload = await parseApiResponse<{ items: MessageJson[] }>(response);
 
@@ -183,11 +188,15 @@ async function postPersistedAssistant(
   conversationId: string,
   assistantContent: string,
 ): Promise<MessageJson> {
-  const response = await apiFetch(`/api/conversations/${conversationId}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ role: "assistant", content: assistantContent }),
-  });
+  const response = await retryTransientNotFound(
+    () =>
+      apiFetch(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "assistant", content: assistantContent }),
+      }),
+    (candidate) => candidate.status === 404,
+  );
 
   const payload = await parseApiResponse<MessageJson>(response);
 
