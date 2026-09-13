@@ -1,0 +1,4 @@
+interface:
+  display_name: "Express 后端迁移阶段"
+  short_description: "规划、审批并验收 Next.js API 到 Express 的单阶段迁移"
+  default_prompt: "使用 $express-backend-migration-stage 分析并规划当前应执行的迁移阶段。"
