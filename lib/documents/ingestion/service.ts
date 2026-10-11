@@ -4,9 +4,11 @@ import path from "node:path";
 import { prisma } from "@/lib/db";
 
 import { asIngestionError, DocumentIngestionError } from "./errors";
+import { classifyDocumentCategory } from "./classification";
 import { getIngestionConfig } from "./config";
 import { runOcr } from "./ocr";
 import { parseDocumentFile, parsePdfDocument, sourceTypeFromPath } from "./parsers";
+import { attachRenderedPdfPageLocations, renderWordToPdf } from "./render";
 import {
   assertReadableFile,
   sha256File,
@@ -46,6 +48,7 @@ function documentMetadata(
 ) {
   return {
     ...normalized.metadata,
+    ...(input.category ? { category: input.category } : {}),
     originalFilename: path.basename(input.filePath),
     sourceIdentifier,
     sourceUri: input.sourceUri ?? normalized.metadata.sourceUri ?? sourceIdentifier,
@@ -114,7 +117,11 @@ export async function ingestDocument(
   const document = isRetryable
     ? await prisma.document.update({
         where: { id: existing.id },
-        data: { status: "pending", errorMessage: null },
+        data: {
+          status: "pending",
+          errorMessage: null,
+          ...(input.category ? { category: input.category } : {}),
+        },
         select: { id: true },
       })
     : await prisma.document.create({
@@ -200,7 +207,44 @@ export async function ingestDocument(
       };
     }
 
+    // DOCX XML deliberately has no physical page model. Render the original
+    // Word file and use its PDF pages solely for paragraph citation locations.
+    // Rendering is best-effort: text and structural normalization remain usable
+    // on machines that do not have LibreOffice installed.
+    if (sourceType === "docx" || sourceType === "doc") {
+      try {
+        const rendered = await renderWordToPdf(filePath, document.id, config);
+        const renderedPdf = await parsePdfDocument(await readFile(rendered.artifactPath), metadata);
+        normalized = attachRenderedPdfPageLocations(normalized, renderedPdf.normalized);
+        normalized.metadata = {
+          ...normalized.metadata,
+          renderedPdfUri: rendered.relativeUri,
+          pageLocationSource: "pdf-render",
+        };
+      } catch (error) {
+        normalized.metadata = {
+          ...normalized.metadata,
+          pageLocationSource: "unavailable",
+          pageLocationWarning: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+
     normalized.metadata = documentMetadata(normalized, input, sourceIdentifier);
+    const categoryClassification = classifyDocumentCategory({
+      normalized,
+      filePath,
+      explicitCategory: input.category,
+    });
+    normalized.metadata = {
+      ...normalized.metadata,
+      category: categoryClassification.category,
+      categoryConfidence: categoryClassification.confidence,
+      categorySignals: categoryClassification.signals,
+      ...(categoryClassification.suggestedCategory ? { suggestedCategory: categoryClassification.suggestedCategory } : {}),
+      needsCategoryReview: categoryClassification.needsReview,
+      categorySource: categoryClassification.source,
+    };
     const artifact = await writeNormalizedArtifact(document.id, normalized, config);
     const status: DocumentProcessingStatus = "succeeded";
 
@@ -209,7 +253,8 @@ export async function ingestDocument(
       data: {
         status,
         errorMessage: null,
-        parserVersion: "document-ingestion-v2",
+        category: categoryClassification.category,
+        parserVersion: "document-ingestion-v3",
         normalizationVersion: normalized.schemaVersion,
         normalizedUri: artifact.relativeUri,
         normalizedContentHash: artifact.contentHash,
@@ -242,7 +287,7 @@ export async function ingestDocument(
       data: {
         status: statusForError(ingestionError),
         errorMessage: ingestionError.message,
-        parserVersion: "document-ingestion-v2",
+        parserVersion: "document-ingestion-v3",
       },
     });
     throw ingestionError;

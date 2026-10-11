@@ -7,8 +7,13 @@ import {
   parseHtmlDocument,
   parsePdfDocument,
   parseTextDocument,
+  pdfBlocksFromLines,
+  pdfTextItemsToLines,
 } from "../lib/documents/ingestion/parsers";
+import { createChunkCandidates, identifyStructure } from "../lib/documents/chunking/structure";
+import { NORMALIZED_DOCUMENT_SCHEMA_VERSION, type NormalizedDocument } from "../lib/documents/ingestion/types";
 import { getIngestionConfig } from "../lib/documents/ingestion/config";
+import { classifyDocumentCategory } from "../lib/documents/ingestion/classification";
 import { DocumentIngestionError } from "../lib/documents/ingestion/errors";
 import { runOcr } from "../lib/documents/ingestion/ocr";
 import {
@@ -68,6 +73,39 @@ async function run() {
   const imagePdf = await extractPdfPages(buildPdf());
   assert(imagePdf.classification === "image_only", "无文字层 PDF 应被识别为 image_only");
   assert(imagePdf.imageOnlyPageNumbers[0] === 1, "应记录图片页码");
+
+  const caseLines = pdfTextItemsToLines([
+    { str: "基本案情", transform: [1, 0, 0, 12, 72, 700], width: 48, height: 12 },
+    { str: "双方当事人签订了协议。", transform: [1, 0, 0, 12, 72, 675], width: 132, height: 12 },
+    { str: "裁判要旨", transform: [1, 0, 0, 12, 72, 630], width: 48, height: 12 },
+    { str: "合同解除须有明确依据。", transform: [1, 0, 0, 12, 72, 605], width: 120, height: 12 },
+    { str: "关联索引", transform: [1, 0, 0, 12, 72, 560], width: 48, height: 12 },
+    { str: "《中华人民共和国民法典》第五百六十二条。", transform: [1, 0, 0, 12, 72, 535], width: 180, height: 12 },
+  ]);
+  const caseBlocks = pdfBlocksFromLines(1, caseLines, new Set(), { sections: [] });
+  assert(caseBlocks.filter((block) => block.kind === "heading").length === 3, "PDF 应将案例标题规范化为独立 heading block");
+  assert(caseBlocks.some((block) => block.semanticRole === "case_holding"), "已知案例栏目应保留语义角色");
+  const genericHeadingBlocks = pdfBlocksFromLines(1, pdfTextItemsToLines([
+    { str: "审理经过", transform: [1, 0, 0, 12, 72, 700], width: 48, height: 12 },
+    { str: "当事人围绕争议事项进行了举证。", transform: [1, 0, 0, 12, 72, 660], width: 180, height: 12 },
+  ]), new Set(), { sections: [] });
+  assert(genericHeadingBlocks[0]?.kind === "heading" && !genericHeadingBlocks[0].semanticRole, "未知但版面明显的标题也应成为通用切片边界");
+  const caseNormalized: NormalizedDocument = {
+    schemaVersion: NORMALIZED_DOCUMENT_SCHEMA_VERSION,
+    sourceType: "pdf",
+    extractionMethod: "native",
+    pages: [{ pageNumber: 1, text: caseBlocks.map((block) => block.text).join("\n"), blocks: caseBlocks }],
+    metadata: { category: "案例" },
+  };
+  const caseStructure = identifyStructure(caseNormalized, "案例");
+  const caseChunks = createChunkCandidates(caseStructure.nodes, { artifactRoot: ".", strategyVersion: "verify", maxChunkCharacters: 500 }, caseStructure.strategy);
+  assert(caseChunks.length === 3 && caseChunks.every((chunk) => /基本案情|裁判要旨|关联索引/.test(chunk.text)), "案例切片应以规范化的案例标题为边界");
+  const inferredCase = classifyDocumentCategory({ normalized: caseNormalized, filePath: "D:/Raw Data/case/指导案例.pdf" });
+  assert(inferredCase.category === "案例" && !inferredCase.needsReview, "应根据目录和案例栏目高置信度识别案例");
+  const explicitContract = classifyDocumentCategory({ normalized: caseNormalized, filePath: "D:/Raw Data/case/指导案例.pdf", explicitCategory: "合同" });
+  assert(explicitContract.category === "合同" && explicitContract.source === "explicit", "显式类别必须优先于自动分类");
+  const uncertain = classifyDocumentCategory({ normalized: parseTextDocument("普通说明文本"), filePath: "D:/Raw Data/misc/readme.txt" });
+  assert(uncertain.category === "通用" && uncertain.needsReview, "低置信度文档应保留通用策略并标记复核");
 
   const artifactRoot = await mkdtemp(path.join(os.tmpdir(), "legal-ingestion-test-"));
   try {

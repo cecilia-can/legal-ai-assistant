@@ -152,6 +152,7 @@ model Document {
   updatedAt            DateTime        @updatedAt
   knowledgeBase        KnowledgeBase   @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
   uploadedBy           User?           @relation("DocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  chunkSets            DocumentChunkSet[]
   chunks               DocumentChunk[]
 
   @@unique([knowledgeBaseId, sourceIdentifier, contentHash])
@@ -160,9 +161,27 @@ model Document {
   @@index([category, updatedAt])
 }
 
+model DocumentChunkSet {
+  id                    String          @id @default(cuid())
+  documentId            String
+  normalizedContentHash String
+  strategyVersion       String
+  status                String          @default("pending")
+  qualityIssues         Json?
+  activatedAt           DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  document              Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunks                DocumentChunk[]
+
+  @@unique([documentId, normalizedContentHash, strategyVersion])
+  @@index([documentId, status, updatedAt])
+}
+
 model DocumentChunk {
   id                   String      @id @default(cuid())
   documentId           String
+  chunkSetId           String?
   ordinal              Int
   text                 String      @db.Text
   sectionPath          String?
@@ -173,10 +192,12 @@ model DocumentChunk {
   chunkStrategyVersion String
   createdAt            DateTime    @default(now())
   document             Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkSet             DocumentChunkSet? @relation(fields: [chunkSetId], references: [id], onDelete: SetNull)
   embeddings           Embedding[]
 
-  @@unique([documentId, ordinal])
+  @@unique([chunkSetId, ordinal])
   @@index([documentId, createdAt])
+  @@index([chunkSetId, createdAt])
 }
 
 model Embedding {

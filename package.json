@@ -12,6 +12,11 @@
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v",
     "ingest:document": "tsx scripts/ingest-document.ts",
+    "chunk:document": "tsx scripts/chunk-document.ts",
+    "preview:chunks": "tsx scripts/preview-document-chunks.ts",
+    "list:knowledge-context": "tsx scripts/list-knowledge-context.ts",
+    "verify:legal-structure": "tsx scripts/verify-legal-structure-chunking.ts",
+    "test:chunking-service": "tsx scripts/verify-document-chunking-service.ts",
     "verify:document-structure": "tsx scripts/verify-document-structure.ts",
     "measure:latency": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/measure-api-latency.ps1",
     "measure:markdown": "tsx scripts/benchmark-markdown-render.ts"

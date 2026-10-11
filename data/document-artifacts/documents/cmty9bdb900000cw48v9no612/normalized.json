@@ -1,0 +1,1072 @@
+{
+  "schemaVersion": "document-normalized-v2",
+  "sourceType": "pdf",
+  "extractionMethod": "native",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "text": "2021-18-2-483-001\n指导案例166号：北京隆昌伟业贸易有限公司诉北京城建重工\n有限公司合同纠纷案\n关键词民事 合同纠纷 违约金调整 诚实信用原则\n裁判要点\n当事人双方就债务清偿达成和解协议，约定解除财产保全措施及违\n约责任。一方当事人依约申请人民法院解除了保全措施后，另一方当事\n人违反诚实信用原则不履行和解协议，并在和解协议违约金诉讼中请求\n减少违约金的，人民法院不予支持。\n相关法条\n《中华人民共和国合同法》第6条、第114条（注：现行有效的法律\n为《中华人民共和国民法典》第7条、第585条）\n基本案情\n2016年3月，北京隆昌伟业贸易有限公司（以下简称隆昌贸易公司\n）因与北京城建重工有限公司（以下简称城建重工公司）买卖合同纠纷\n向人民法院提起民事诉讼，人民法院于2016年8月作出（2016）京0106民\n初6385号民事判决，判决城建重工公司给付隆昌贸易公司货款\n5284648.68元及相应利息。城建重工公司对此判决提起上诉，在上诉期\n间，城建重工公司与隆昌贸易公司签订协议书，协议书约定：（1）城建\n重工公司承诺于2016年10月14日前向隆昌贸易公司支付人民币300万元\n，剩余的本金2284648.68元、利息462406.72元及诉讼费25802元（共计\n2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议\n约定的时间支付首期给付款300万元或未能在2016年12月31日前足额支付\n完毕全部款项的，应向隆昌贸易公司支付违约金80万元；如果城建重工",
+      "blocks": [
+        {
+          "kind": "heading",
+          "text": "2021-18-2-483-001",
+          "locator": "page:1:block:1",
+          "sourcePage": 1,
+          "paragraphType": "heading",
+          "bbox": [
+            36,
+            783.88,
+            176.25,
+            800.38
+          ],
+          "sectionPath": [
+            "2021-18-2-483-001"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "指导案例166号：北京隆昌伟业贸易有限公司诉北京城建重工",
+          "locator": "page:1:block:2",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            73.76,
+            754.07,
+            557.24,
+            772.07
+          ],
+          "sectionPath": [
+            "2021-18-2-483-001"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "有限公司合同纠纷案",
+          "locator": "page:1:block:3",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            216.5,
+            722.57,
+            378.5,
+            740.57
+          ],
+          "sectionPath": [
+            "2021-18-2-483-001"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "关键词民事 合同纠纷 违约金调整 诚实信用原则",
+          "locator": "page:1:block:4",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            69,
+            663.65,
+            428.06,
+            680.15
+          ],
+          "sectionPath": [
+            "2021-18-2-483-001"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "裁判要点",
+          "locator": "page:1:block:5",
+          "sourcePage": 1,
+          "paragraphType": "heading",
+          "bbox": [
+            69,
+            635.71,
+            135,
+            652.21
+          ],
+          "sectionPath": [
+            "裁判要点"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "当事人双方就债务清偿达成和解协议，约定解除财产保全措施及违",
+          "locator": "page:1:block:6",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            69,
+            605,
+            547.5,
+            621.5
+          ],
+          "sectionPath": [
+            "裁判要点"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "约责任。一方当事人依约申请人民法院解除了保全措施后，另一方当事",
+          "locator": "page:1:block:7",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            575,
+            547.5,
+            591.5
+          ],
+          "sectionPath": [
+            "裁判要点"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "人违反诚实信用原则不履行和解协议，并在和解协议违约金诉讼中请求",
+          "locator": "page:1:block:8",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            545,
+            547.5,
+            561.5
+          ],
+          "sectionPath": [
+            "裁判要点"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "减少违约金的，人民法院不予支持。",
+          "locator": "page:1:block:9",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            515,
+            300,
+            531.5
+          ],
+          "sectionPath": [
+            "裁判要点"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "相关法条",
+          "locator": "page:1:block:10",
+          "sourcePage": 1,
+          "paragraphType": "heading",
+          "bbox": [
+            69,
+            485.71,
+            135,
+            502.21
+          ],
+          "sectionPath": [
+            "相关法条"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "《中华人民共和国合同法》第6条、第114条（注：现行有效的法律",
+          "locator": "page:1:block:11",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            69,
+            455,
+            547.5,
+            471.5
+          ],
+          "sectionPath": [
+            "相关法条"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "为《中华人民共和国民法典》第7条、第585条）",
+          "locator": "page:1:block:12",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            425,
+            382.5,
+            441.5
+          ],
+          "sectionPath": [
+            "相关法条"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "基本案情",
+          "locator": "page:1:block:13",
+          "sourcePage": 1,
+          "paragraphType": "heading",
+          "bbox": [
+            69,
+            395.71,
+            135,
+            412.21
+          ],
+          "sectionPath": [
+            "基本案情"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "2016年3月，北京隆昌伟业贸易有限公司（以下简称隆昌贸易公司",
+          "locator": "page:1:block:14",
+          "sourcePage": 1,
+          "paragraphType": "heading",
+          "bbox": [
+            69,
+            365,
+            539.25,
+            381.5
+          ],
+          "sectionPath": [
+            "2016年3月，北京隆昌伟业贸易有限公司（以下简称隆昌贸易公司"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "）因与北京城建重工有限公司（以下简称城建重工公司）买卖合同纠纷",
+          "locator": "page:1:block:15",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            335,
+            547.5,
+            351.5
+          ],
+          "sectionPath": [
+            "2016年3月，北京隆昌伟业贸易有限公司（以下简称隆昌贸易公司"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "向人民法院提起民事诉讼，人民法院于2016年8月作出（2016）京0106民",
+          "locator": "page:1:block:16",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            305,
+            555.75,
+            321.5
+          ],
+          "sectionPath": [
+            "2016年3月，北京隆昌伟业贸易有限公司（以下简称隆昌贸易公司"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "初6385号民事判决，判决城建重工公司给付隆昌贸易公司货款",
+          "locator": "page:1:block:17",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            275,
+            481.5,
+            291.5
+          ],
+          "sectionPath": [
+            "2016年3月，北京隆昌伟业贸易有限公司（以下简称隆昌贸易公司"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "5284648.68元及相应利息。城建重工公司对此判决提起上诉，在上诉期",
+          "locator": "page:1:block:18",
+          "sourcePage": 1,
+          "paragraphType": "heading",
+          "bbox": [
+            36,
+            245,
+            547.5,
+            261.5
+          ],
+          "sectionPath": [
+            "5284648.68元及相应利息。城建重工公司对此判决提起上诉，在上诉期"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "间，城建重工公司与隆昌贸易公司签订协议书，协议书约定：（1）城建",
+          "locator": "page:1:block:19",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            215,
+            555.75,
+            231.5
+          ],
+          "sectionPath": [
+            "5284648.68元及相应利息。城建重工公司对此判决提起上诉，在上诉期"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "重工公司承诺于2016年10月14日前向隆昌贸易公司支付人民币300万元",
+          "locator": "page:1:block:20",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            185,
+            539.25,
+            201.5
+          ],
+          "sectionPath": [
+            "5284648.68元及相应利息。城建重工公司对此判决提起上诉，在上诉期"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "，剩余的本金2284648.68元、利息462406.72元及诉讼费25802元（共计",
+          "locator": "page:1:block:21",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            155,
+            547.5,
+            171.5
+          ],
+          "sectionPath": [
+            "5284648.68元及相应利息。城建重工公司对此判决提起上诉，在上诉期"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议",
+          "locator": "page:1:block:22",
+          "sourcePage": 1,
+          "paragraphType": "heading",
+          "bbox": [
+            36,
+            125,
+            555.75,
+            141.5
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "约定的时间支付首期给付款300万元或未能在2016年12月31日前足额支付",
+          "locator": "page:1:block:23",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            95,
+            555.75,
+            111.5
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "完毕全部款项的，应向隆昌贸易公司支付违约金80万元；如果城建重工",
+          "locator": "page:1:block:24",
+          "sourcePage": 1,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            65,
+            547.5,
+            81.5
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        }
+      ]
+    },
+    {
+      "pageNumber": 2,
+      "text": "公司未能在2016年12月31日前足额支付完毕全部款项的，隆昌贸易公司\n可以自2017年1月1日起随时以（2016）京0106民初6385号民事判决为依\n据向人民法院申请强制执行，同时有权向城建重工公司追索本协议确定\n的违约金80万元。（2）隆昌贸易公司申请解除在他案中对城建重工公司\n名下财产的保全措施。双方达成协议后城建重工公司向二审法院申请撤\n回上诉并按约定于2016年10月14日给付隆昌贸易公司首期款项300万元\n，隆昌贸易公司按协议约定申请解除了对城建重工公司财产的保全。后\n城建重工公司未按照协议书的约定支付剩余款项，2017年1月隆昌贸易公\n司申请执行（2016）京0106民初6385号民事判决书所确定的债权，并于\n2017年6月起诉城建重工公司支付违约金80万元。\n一审中，城建重工公司答辩称：隆昌贸易公司要求给付的请求不合\n理，违约金数额过高。根据生效判决，城建重工公司应给付隆昌贸易公\n司的款项为5284648.68元及利息。隆昌贸易公司诉求城建重工公司因未\n完全履行和解协议承担违约金的数额为80万元，此违约金数额过高，有\n关请求不合理。一审宣判后，城建重工公司不服一审判决，上诉称：一\n审判决在错误认定城建重工公司恶意违约的基础上，适用惩罚性违约金\n，不考虑隆昌贸易公司的损失情况等综合因素而全部支持其诉讼请求\n，显失公平，请求适当减少违约金。\n裁判结果\n北京市丰台区人民法院于2017年6月30日作出（2017）京0106民初\n15563号民事判决：北京城建重工有限公司于判决生效之日起十日内支付\n北京隆昌伟业贸易有限公司违约金80万元。北京城建重工有限公司不服\n一审判决，提起上诉。北京市第二中级人民法院于2017年10月31日作出\n（2017）京02民终8676号民事判决：驳回上诉，维持原判。\n裁判理由",
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "text": "公司未能在2016年12月31日前足额支付完毕全部款项的，隆昌贸易公司",
+          "locator": "page:2:block:1",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            783.88,
+            547.5,
+            800.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "可以自2017年1月1日起随时以（2016）京0106民初6385号民事判决为依",
+          "locator": "page:2:block:2",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            753.88,
+            547.5,
+            770.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "据向人民法院申请强制执行，同时有权向城建重工公司追索本协议确定",
+          "locator": "page:2:block:3",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            723.88,
+            547.5,
+            740.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "的违约金80万元。（2）隆昌贸易公司申请解除在他案中对城建重工公司",
+          "locator": "page:2:block:4",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            693.88,
+            555.75,
+            710.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "名下财产的保全措施。双方达成协议后城建重工公司向二审法院申请撤",
+          "locator": "page:2:block:5",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            663.88,
+            547.5,
+            680.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "回上诉并按约定于2016年10月14日给付隆昌贸易公司首期款项300万元",
+          "locator": "page:2:block:6",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            633.88,
+            539.25,
+            650.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "，隆昌贸易公司按协议约定申请解除了对城建重工公司财产的保全。后",
+          "locator": "page:2:block:7",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            603.88,
+            547.5,
+            620.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "城建重工公司未按照协议书的约定支付剩余款项，2017年1月隆昌贸易公",
+          "locator": "page:2:block:8",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            573.88,
+            555.75,
+            590.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "司申请执行（2016）京0106民初6385号民事判决书所确定的债权，并于",
+          "locator": "page:2:block:9",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            543.88,
+            547.5,
+            560.38
+          ],
+          "sectionPath": [
+            "2772857.4元）于2016年12月31日前支付完毕；城建重工公司未按照协议"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "2017年6月起诉城建重工公司支付违约金80万元。",
+          "locator": "page:2:block:10",
+          "sourcePage": 2,
+          "paragraphType": "heading",
+          "bbox": [
+            36,
+            513.88,
+            390.75,
+            530.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "一审中，城建重工公司答辩称：隆昌贸易公司要求给付的请求不合",
+          "locator": "page:2:block:11",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            69,
+            483.88,
+            547.5,
+            500.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "理，违约金数额过高。根据生效判决，城建重工公司应给付隆昌贸易公",
+          "locator": "page:2:block:12",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            453.88,
+            547.5,
+            470.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "司的款项为5284648.68元及利息。隆昌贸易公司诉求城建重工公司因未",
+          "locator": "page:2:block:13",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            423.88,
+            547.5,
+            440.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "完全履行和解协议承担违约金的数额为80万元，此违约金数额过高，有",
+          "locator": "page:2:block:14",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            393.88,
+            547.5,
+            410.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "关请求不合理。一审宣判后，城建重工公司不服一审判决，上诉称：一",
+          "locator": "page:2:block:15",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            363.88,
+            547.5,
+            380.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "审判决在错误认定城建重工公司恶意违约的基础上，适用惩罚性违约金",
+          "locator": "page:2:block:16",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            333.88,
+            547.5,
+            350.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "，不考虑隆昌贸易公司的损失情况等综合因素而全部支持其诉讼请求",
+          "locator": "page:2:block:17",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            303.88,
+            531,
+            320.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "，显失公平，请求适当减少违约金。",
+          "locator": "page:2:block:18",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            273.88,
+            300,
+            290.38
+          ],
+          "sectionPath": [
+            "2017年6月起诉城建重工公司支付违约金80万元。"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "裁判结果",
+          "locator": "page:2:block:19",
+          "sourcePage": 2,
+          "paragraphType": "heading",
+          "bbox": [
+            69,
+            244.59,
+            135,
+            261.09000000000003
+          ],
+          "sectionPath": [
+            "裁判结果"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "北京市丰台区人民法院于2017年6月30日作出（2017）京0106民初",
+          "locator": "page:2:block:20",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            69,
+            213.88,
+            539.25,
+            230.38
+          ],
+          "sectionPath": [
+            "裁判结果"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "15563号民事判决：北京城建重工有限公司于判决生效之日起十日内支付",
+          "locator": "page:2:block:21",
+          "sourcePage": 2,
+          "paragraphType": "heading",
+          "bbox": [
+            36,
+            183.88,
+            555.75,
+            200.38
+          ],
+          "sectionPath": [
+            "15563号民事判决：北京城建重工有限公司于判决生效之日起十日内支付"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "北京隆昌伟业贸易有限公司违约金80万元。北京城建重工有限公司不服",
+          "locator": "page:2:block:22",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            153.88,
+            547.5,
+            170.38
+          ],
+          "sectionPath": [
+            "15563号民事判决：北京城建重工有限公司于判决生效之日起十日内支付"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "一审判决，提起上诉。北京市第二中级人民法院于2017年10月31日作出",
+          "locator": "page:2:block:23",
+          "sourcePage": 2,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            123.88,
+            547.5,
+            140.38
+          ],
+          "sectionPath": [
+            "15563号民事判决：北京城建重工有限公司于判决生效之日起十日内支付"
+          ]
+        },
+        {
+          "kind": "list-item",
+          "text": "（2017）京02民终8676号民事判决：驳回上诉，维持原判。",
+          "locator": "page:2:block:24",
+          "sourcePage": 2,
+          "paragraphType": "list-item",
+          "bbox": [
+            36,
+            93.88,
+            465,
+            110.38
+          ],
+          "sectionPath": [
+            "15563号民事判决：北京城建重工有限公司于判决生效之日起十日内支付"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "裁判理由",
+          "locator": "page:2:block:25",
+          "sourcePage": 2,
+          "paragraphType": "heading",
+          "bbox": [
+            69,
+            64.59,
+            135,
+            81.09
+          ],
+          "sectionPath": [
+            "裁判理由"
+          ]
+        }
+      ]
+    },
+    {
+      "pageNumber": 3,
+      "text": "法院生效裁判认为：隆昌贸易公司与城建重工公司在诉讼期间签订\n了协议书，该协议书均系双方的真实意思表示，不违反法律法规强制性\n规定，合法有效，双方应诚信履行。本案涉及诉讼中和解协议的违约金\n调整问题。本案中，隆昌贸易公司与城建重工公司签订协议书约定城建\n重工公司如未能于2016年10月14日前向隆昌贸易公司支付人民币300万元\n，或未能于2016年12月31日前支付剩余的本金2284648.68元、利息\n462406.72元及诉讼费25802元（共计2772857.4元），则隆昌贸易公司有\n权申请执行原一审判决并要求城建重工公司承担80万元违约金。现城建\n重工公司于2016年12月31日前未依约向隆昌贸易公司支付剩余的\n2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元\n。城建重工公司在诉讼期间与隆昌贸易公司达成和解协议并撤回上诉\n，隆昌贸易公司按协议约定申请解除了对城建重工公司账户的冻结。而\n城建重工公司作为商事主体自愿给隆昌贸易公司出具和解协议并承诺高\n额违约金，但在账户解除冻结后城建重工公司并未依约履行后续给付义\n务，具有主观恶意，有悖诚实信用。一审法院判令城建重工公司依约支\n付80万元违约金，并无不当。",
+      "blocks": [
+        {
+          "kind": "paragraph",
+          "text": "法院生效裁判认为：隆昌贸易公司与城建重工公司在诉讼期间签订",
+          "locator": "page:3:block:1",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            69,
+            783.88,
+            547.5,
+            800.38
+          ],
+          "sectionPath": [
+            "裁判理由"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "了协议书，该协议书均系双方的真实意思表示，不违反法律法规强制性",
+          "locator": "page:3:block:2",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            753.88,
+            547.5,
+            770.38
+          ],
+          "sectionPath": [
+            "裁判理由"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "规定，合法有效，双方应诚信履行。本案涉及诉讼中和解协议的违约金",
+          "locator": "page:3:block:3",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            723.88,
+            547.5,
+            740.38
+          ],
+          "sectionPath": [
+            "裁判理由"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "调整问题。本案中，隆昌贸易公司与城建重工公司签订协议书约定城建",
+          "locator": "page:3:block:4",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            693.88,
+            547.5,
+            710.38
+          ],
+          "sectionPath": [
+            "裁判理由"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "重工公司如未能于2016年10月14日前向隆昌贸易公司支付人民币300万元",
+          "locator": "page:3:block:5",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            663.88,
+            555.75,
+            680.38
+          ],
+          "sectionPath": [
+            "裁判理由"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "，或未能于2016年12月31日前支付剩余的本金2284648.68元、利息",
+          "locator": "page:3:block:6",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            633.88,
+            514.5,
+            650.38
+          ],
+          "sectionPath": [
+            "裁判理由"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "462406.72元及诉讼费25802元（共计2772857.4元），则隆昌贸易公司有",
+          "locator": "page:3:block:7",
+          "sourcePage": 3,
+          "paragraphType": "heading",
+          "bbox": [
+            36,
+            603.88,
+            555.75,
+            620.38
+          ],
+          "sectionPath": [
+            "462406.72元及诉讼费25802元（共计2772857.4元），则隆昌贸易公司有"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "权申请执行原一审判决并要求城建重工公司承担80万元违约金。现城建",
+          "locator": "page:3:block:8",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            573.88,
+            547.5,
+            590.38
+          ],
+          "sectionPath": [
+            "462406.72元及诉讼费25802元（共计2772857.4元），则隆昌贸易公司有"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "重工公司于2016年12月31日前未依约向隆昌贸易公司支付剩余的",
+          "locator": "page:3:block:9",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            543.88,
+            498,
+            560.38
+          ],
+          "sectionPath": [
+            "462406.72元及诉讼费25802元（共计2772857.4元），则隆昌贸易公司有"
+          ]
+        },
+        {
+          "kind": "heading",
+          "text": "2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元",
+          "locator": "page:3:block:10",
+          "sourcePage": 3,
+          "paragraphType": "heading",
+          "bbox": [
+            36,
+            513.88,
+            547.5,
+            530.38
+          ],
+          "sectionPath": [
+            "2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "。城建重工公司在诉讼期间与隆昌贸易公司达成和解协议并撤回上诉",
+          "locator": "page:3:block:11",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            483.88,
+            531,
+            500.38
+          ],
+          "sectionPath": [
+            "2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "，隆昌贸易公司按协议约定申请解除了对城建重工公司账户的冻结。而",
+          "locator": "page:3:block:12",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            453.88,
+            547.5,
+            470.38
+          ],
+          "sectionPath": [
+            "2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "城建重工公司作为商事主体自愿给隆昌贸易公司出具和解协议并承诺高",
+          "locator": "page:3:block:13",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            423.88,
+            547.5,
+            440.38
+          ],
+          "sectionPath": [
+            "2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "额违约金，但在账户解除冻结后城建重工公司并未依约履行后续给付义",
+          "locator": "page:3:block:14",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            393.88,
+            547.5,
+            410.38
+          ],
+          "sectionPath": [
+            "2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "务，具有主观恶意，有悖诚实信用。一审法院判令城建重工公司依约支",
+          "locator": "page:3:block:15",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            363.88,
+            547.5,
+            380.38
+          ],
+          "sectionPath": [
+            "2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元"
+          ]
+        },
+        {
+          "kind": "paragraph",
+          "text": "付80万元违约金，并无不当。",
+          "locator": "page:3:block:16",
+          "sourcePage": 3,
+          "paragraphType": "body",
+          "bbox": [
+            36,
+            333.88,
+            250.5,
+            350.38
+          ],
+          "sectionPath": [
+            "2772857.4元，隆昌贸易公司的损失主要为尚未得到清偿的2772857.4元"
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "sourceUri": "../Raw Data/case/指导案例166号：北京隆昌伟业贸易有限公司诉北京城建重工有限公司合同纠纷案.pdf",
+    "sourceIdentifier": "../Raw Data/case/指导案例166号：北京隆昌伟业贸易有限公司诉北京城建重工有限公司合同纠纷案.pdf",
+    "pdfPageClassification": "text",
+    "category": "案例",
+    "originalFilename": "指导案例166号：北京隆昌伟业贸易有限公司诉北京城建重工有限公司合同纠纷案.pdf"
+  }
+}

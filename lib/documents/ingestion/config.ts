@@ -34,6 +34,9 @@ export function getIngestionConfig(
       overrides.officeCommand ??
       process.env.DOCUMENT_OFFICE_COMMAND ??
       "soffice",
+    documentRenderTimeoutMs:
+      overrides.documentRenderTimeoutMs ??
+      positiveInteger(process.env.DOCUMENT_RENDER_TIMEOUT_MS, 120_000),
     ocrLanguages:
       overrides.ocrLanguages ??
       process.env.DOCUMENT_OCR_LANGUAGES ??
