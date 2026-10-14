@@ -13,6 +13,8 @@
     "db:reset": "docker compose down -v",
     "ingest:document": "tsx scripts/ingest-document.ts",
     "chunk:document": "tsx scripts/chunk-document.ts",
+    "embed:documents": "tsx scripts/embed-documents.ts",
+    "verify:embedding-rag": "tsx scripts/verify-embedding-retrieval-rag.ts",
     "preview:chunks": "tsx scripts/preview-document-chunks.ts",
     "list:knowledge-context": "tsx scripts/list-knowledge-context.ts",
     "verify:legal-structure": "tsx scripts/verify-legal-structure-chunking.ts",

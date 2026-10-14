@@ -25,6 +25,7 @@ model User {
   conversations     Conversation[]
   knowledgeBases    KnowledgeBase[]   @relation("KnowledgeBaseOwner")
   uploadedDocuments Document[]        @relation("DocumentUploader")
+  embeddingTasks    EmbeddingTask[]   @relation("EmbeddingTaskRequester")
 }
 
 model Account {
@@ -117,6 +118,7 @@ model KnowledgeBase {
   updatedAt DateTime   @updatedAt
   owner     User?      @relation("KnowledgeBaseOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   documents Document[]
+  embeddingTasks EmbeddingTask[]
 
   @@index([ownerId, updatedAt])
   @@index([scope, updatedAt])
@@ -212,4 +214,30 @@ model Embedding {
 
   @@unique([chunkId, model, contentHash])
   @@index([model, dimensions])
+}
+
+model EmbeddingTask {
+  id                String         @id @default(cuid())
+  requestedByUserId String?
+  knowledgeBaseId   String?
+  documentId        String?
+  model             String
+  dimensions        Int
+  status            String         @default("pending")
+  totalChunks       Int            @default(0)
+  completedChunks   Int            @default(0)
+  failedChunks      Int            @default(0)
+  retryCount        Int            @default(0)
+  failureDetails    Json?
+  errorMessage      String?        @db.Text
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  requestedBy       User?          @relation("EmbeddingTaskRequester", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  knowledgeBase     KnowledgeBase? @relation(fields: [knowledgeBaseId], references: [id], onDelete: SetNull)
+
+  @@index([status, updatedAt])
+  @@index([knowledgeBaseId, createdAt])
+  @@index([documentId, createdAt])
 }

@@ -26,6 +26,9 @@ import {
   extractUsageFromChunk,
 } from "@/lib/ai/client";
 import { requireApiSession } from "@/lib/auth/require-api-session";
+import { buildRagContext } from "@/lib/rag/context";
+import { isRagEnabled } from "@/lib/rag/config";
+import { retrieveRelevantChunks } from "@/lib/rag/retrieval";
 import {
   MessageServiceError,
   listConversationMessagesForChat,
@@ -143,7 +146,21 @@ export async function POST(request: Request) {
     return createFixedTextSseResponse(getJailbreakRejectionMessage());
   }
 
-  const tokenStats = computeInputTokenStats(apiMessages);
+  let ragContext: string | undefined;
+  if (isRagEnabled()) {
+    try {
+      const results = await retrieveRelevantChunks({
+        userId: session.userId,
+        query: latestUser.content,
+      });
+      ragContext = buildRagContext(results)?.content;
+    } catch (error) {
+      console.error("POST /api/chat failed retrieving RAG context:", error);
+      return jsonError("知识库检索暂时不可用，请稍后再试。", 503);
+    }
+  }
+
+  const tokenStats = computeInputTokenStats(apiMessages, ragContext);
   const tokenQuota = recordChatTokenUsage(
     session.userId,
     tokenStats.local_trimmed_input,
@@ -152,7 +169,7 @@ export async function POST(request: Request) {
     return jsonError("已达到今日 token 使用上限，请明天再试。", 429);
   }
 
-  const modelMessages = buildModelMessages(apiMessages);
+  const modelMessages = buildModelMessages(apiMessages, ragContext);
 
   let upstream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
 

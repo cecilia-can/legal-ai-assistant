@@ -54,10 +54,12 @@ function trimHistoryToBudget(
   return history.slice(latestUserIndex);
 }
 
-export function buildModelMessages(input: ChatApiMessage[]): ModelMessage[] {
+export function buildModelMessages(input: ChatApiMessage[], ragContext?: string): ModelMessage[] {
   const systemMessage: ModelMessage = {
     role: "system",
-    content: getLegalAssistantSystemPrompt(),
+    content: ragContext
+      ? `${getLegalAssistantSystemPrompt()}\n\n## 已授权知识库资料\n${ragContext}`
+      : getLegalAssistantSystemPrompt(),
   };
 
   const history = toHistoryMessages(input);
@@ -97,10 +99,13 @@ export type InputTokenStats = {
 
 export function computeInputTokenStats(
   input: ChatApiMessage[],
+  ragContext?: string,
 ): InputTokenStats {
   const systemMessage: ModelMessage = {
     role: "system",
-    content: getLegalAssistantSystemPrompt(),
+    content: ragContext
+      ? `${getLegalAssistantSystemPrompt()}\n\n## 已授权知识库资料\n${ragContext}`
+      : getLegalAssistantSystemPrompt(),
   };
 
   const history = toHistoryMessages(input);
