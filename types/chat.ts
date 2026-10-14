@@ -7,6 +7,39 @@ export interface ChatMessage {
   createdAt: Date;
 }
 
+/**
+ * 消息区内部使用的可扩展时间线项。
+ * 目前页面只传入 message；Agent 接入后可直接传入其余类型，无需重写列表容器。
+ */
+export type ChatTimelineItem =
+  | {
+      type: "message";
+      id: string;
+      message: ChatMessage;
+    }
+  | {
+      type: "tool-call";
+      id: string;
+      toolName: string;
+      summary: string;
+      status: "pending" | "running" | "completed" | "failed";
+    }
+  | {
+      type: "tool-result";
+      id: string;
+      toolName: string;
+      summary: string;
+      content: string;
+      status: "completed" | "failed";
+    }
+  | {
+      type: "execution-status";
+      id: string;
+      label: string;
+      detail?: string;
+      status: "pending" | "running" | "completed" | "failed";
+    };
+
 /** GET/POST /api/conversations/[id]/messages 的 JSON 消息形状 */
 export type MessageJson = {
   id: string;

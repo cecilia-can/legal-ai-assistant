@@ -60,10 +60,30 @@ export function readApiMessage(payload: unknown, fallback: string): string {
 export async function parseApiResponse<T>(
   response: Response,
 ): Promise<ApiResponse<T>> {
-  const payload: unknown = await response.json();
+  const contentType = response.headers.get("content-type") ?? "未知类型";
+
+  if (!contentType.toLowerCase().includes("application/json")) {
+    const status = response.status
+      ? `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}`
+      : "未知状态";
+    throw new Error(
+      `接口返回了非 JSON 响应（${status}，${contentType}）。请重试；若持续出现，请检查服务端日志。`,
+    );
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error(
+      "接口返回的 JSON 无法解析。请重试；若持续出现，请检查服务端日志。",
+    );
+  }
 
   if (!isApiResponse<T>(payload)) {
-    throw new Error("响应格式无效。");
+    throw new Error(
+      "接口返回的 JSON 格式不符合约定。请重试；若持续出现，请检查服务端日志。",
+    );
   }
 
   return payload;

@@ -58,9 +58,17 @@ export default function HomePage() {
   const loadingConversationId = useChatStore(
     (state) => state.loadingConversationId,
   );
+  const loadingOlderConversationId = useChatStore(
+    (state) => state.loadingOlderConversationId,
+  );
+  const nextCursorByConversation = useChatStore(
+    (state) => state.nextCursorByConversation,
+  );
+  const olderMessagesError = useChatStore((state) => state.olderMessagesError);
   const deletingMessageId = useChatStore((state) => state.deletingMessageId);
   const chatError = useChatStore((state) => state.error);
   const loadMessages = useChatStore((state) => state.loadMessages);
+  const loadOlderMessages = useChatStore((state) => state.loadOlderMessages);
   const sendMessage = useChatStore((state) => state.sendMessage);
   const abortStream = useChatStore((state) => state.abortStream);
   const deleteMessage = useChatStore((state) => state.deleteMessage);
@@ -89,6 +97,10 @@ export default function HomePage() {
   );
   const isStreaming = streamingConversationId === activeId;
   const isMessagesLoading = loadingConversationId === activeId;
+  const isOlderMessagesLoading = loadingOlderConversationId === activeId;
+  const hasOlderMessages = Boolean(
+    activeId && nextCursorByConversation[activeId],
+  );
 
   const handleFocusInput = useCallback(() => {
     document.getElementById(CHAT_INPUT_ID)?.focus();
@@ -106,6 +118,14 @@ export default function HomePage() {
     clearChatError();
     void loadMessages(activeId);
   }, [activeId, clearChatError, loadMessages]);
+
+  const handleLoadOlderMessages = useCallback(() => {
+    if (!activeId) {
+      return;
+    }
+
+    void loadOlderMessages(activeId);
+  }, [activeId, loadOlderMessages]);
 
   useEffect(() => {
     void fetchConversations();
@@ -384,6 +404,18 @@ export default function HomePage() {
                       loadingError={messageLoadError}
                       onRetryLoad={activeId ? handleRetryMessages : undefined}
                       retryingLoad={isMessagesLoading}
+                      hasOlderMessages={hasOlderMessages}
+                      isLoadingOlder={isOlderMessagesLoading}
+                      olderLoadError={
+                        activeId ? olderMessagesError : null
+                      }
+                      onLoadOlder={
+                        activeId ? handleLoadOlderMessages : undefined
+                      }
+                      onRetryOlder={
+                        activeId ? handleLoadOlderMessages : undefined
+                      }
+                      retryingOlder={isOlderMessagesLoading}
                       onDeleteMessage={
                         activeId ? handleDeleteMessageRequest : undefined
                       }

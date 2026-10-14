@@ -42,3 +42,13 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# python虚拟环境
+/.venv/
+
+# OCR
+DOCUMENT_OCR_COMMAND="D:/Projects/legal-ai-assistant-new/.venv/Scripts/ocrmypdf.exe"
+DOCUMENT_TESSERACT_COMMAND="D:/APP/TesseractOCR/tesseract.exe"
+DOCUMENT_OCR_LANGUAGES="chi_sim+eng"
+DOCUMENT_OCR_TIMEOUT_MS="900000"
+DOCUMENT_ARTIFACT_ROOT="D:/Projects/legal-ai-assistant-new/data/document-artifacts"
