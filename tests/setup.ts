@@ -1,5 +1,7 @@
 import "@testing-library/jest-dom/vitest";
-import { vi } from "vitest";
+import { afterEach, vi } from "vitest";
+
+const animationFrameTimers = new Set<number>();
 
 class ResizeObserverMock {
   private readonly callback: ResizeObserverCallback;
@@ -69,12 +71,26 @@ Object.defineProperty(HTMLElement.prototype, "scrollTo", {
 Object.defineProperty(window, "requestAnimationFrame", {
   writable: true,
   value: (callback: FrameRequestCallback) => {
-    callback(performance.now());
-    return 0;
+    const id = window.setTimeout(() => {
+      animationFrameTimers.delete(id);
+      callback(performance.now());
+    }, 0);
+    animationFrameTimers.add(id);
+    return id;
   },
 });
 
 Object.defineProperty(window, "cancelAnimationFrame", {
   writable: true,
-  value: () => {},
+  value: (id: number) => {
+    animationFrameTimers.delete(id);
+    window.clearTimeout(id);
+  },
+});
+
+afterEach(() => {
+  for (const id of animationFrameTimers) {
+    window.clearTimeout(id);
+  }
+  animationFrameTimers.clear();
 });

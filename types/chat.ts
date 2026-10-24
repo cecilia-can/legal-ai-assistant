@@ -91,12 +91,18 @@ export type ChatStreamDoneEvent = {
 export type ChatStreamErrorEvent = {
   type: "error";
   message: string;
+  code: "UPSTREAM_ERROR" | "UPSTREAM_TIMEOUT" | "STREAM_INTERRUPTED";
+};
+
+export type ChatStreamCancelledEvent = {
+  type: "cancelled";
 };
 
 export type ChatStreamEvent =
   | ChatStreamTokenEvent
   | ChatStreamDoneEvent
-  | ChatStreamErrorEvent;
+  | ChatStreamErrorEvent
+  | ChatStreamCancelledEvent;
 
 export function isChatStreamEvent(value: unknown): value is ChatStreamEvent {
   if (typeof value !== "object" || value === null) {
@@ -114,7 +120,16 @@ export function isChatStreamEvent(value: unknown): value is ChatStreamEvent {
   }
 
   if (record.type === "error") {
-    return typeof record.message === "string";
+    return (
+      typeof record.message === "string" &&
+      (record.code === "UPSTREAM_ERROR" ||
+        record.code === "UPSTREAM_TIMEOUT" ||
+        record.code === "STREAM_INTERRUPTED")
+    );
+  }
+
+  if (record.type === "cancelled") {
+    return true;
   }
 
   return false;

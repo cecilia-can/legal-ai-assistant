@@ -19,11 +19,28 @@ import type {
 } from "@/types/chat";
 import { create } from "zustand";
 
+export type ChatGenerationStatus =
+  | "generating"
+  | "completed"
+  | "cancelled"
+  | "failed";
+
+export type ChatGenerationState = {
+  runId: string | null;
+  status: ChatGenerationStatus;
+  failureReason: string | null;
+  retryContent: string;
+};
+
 interface ChatState {
   /** 按 conversationId 索引的消息列表 */
   messagesByConversation: Record<string, ChatMessage[]>;
   /** 当前正在接收 SSE 的会话 ID，null 表示空闲 */
   streamingConversationId: string | null;
+  /** 当前流式请求对应的服务端生成任务 ID */
+  streamingRunId: string | null;
+  /** 服务端生成任务的终态与可执行恢复信息，按会话保存。 */
+  generationByConversation: Record<string, ChatGenerationState>;
   /** 正在从 API 加载历史的会话 ID */
   loadingConversationId: string | null;
   /** 正在加载更早历史消息的会话 ID */
@@ -35,9 +52,13 @@ interface ChatState {
   /** 正在删除的消息 ID */
   deletingMessageId: string | null;
   error: string | null;
-  loadMessages: (conversationId: string) => Promise<void>;
+  loadMessages: (
+    conversationId: string,
+    options?: { force?: boolean },
+  ) => Promise<void>;
   loadOlderMessages: (conversationId: string) => Promise<void>;
   sendMessage: (conversationId: string, content: string) => Promise<void>;
+  retryFailedMessage: (conversationId: string) => Promise<void>;
   abortStream: () => void;
   regenerateMessage: (
     conversationId: string,
@@ -144,7 +165,7 @@ function clearStreamingIfMatch(
 ) {
   set((state) =>
     state.streamingConversationId === conversationId
-      ? { streamingConversationId: null }
+      ? { streamingConversationId: null, streamingRunId: null }
       : state,
   );
 }
@@ -492,6 +513,8 @@ async function finalizeRound(
 export const useChatStore = create<ChatState>((set, get) => ({
   messagesByConversation: {},
   streamingConversationId: null,
+  streamingRunId: null,
+  generationByConversation: {},
   loadingConversationId: null,
   loadingOlderConversationId: null,
   nextCursorByConversation: {},
@@ -499,8 +522,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   deletingMessageId: null,
   error: null,
 
-  loadMessages: async (conversationId) => {
-    if (Object.hasOwn(get().messagesByConversation, conversationId)) {
+  loadMessages: async (conversationId, options) => {
+    if (!options?.force && Object.hasOwn(get().messagesByConversation, conversationId)) {
       return;
     }
 
@@ -524,7 +547,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const items = data.items.map(toChatMessage);
 
       set((state) => {
-        if (Object.hasOwn(state.messagesByConversation, conversationId)) {
+        if (!options?.force && Object.hasOwn(state.messagesByConversation, conversationId)) {
           return { loadingConversationId: null };
         }
 
@@ -663,10 +686,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
         [conversationId]: nextMessages,
       },
       streamingConversationId: conversationId,
+      streamingRunId: null,
+      generationByConversation: {
+        ...state.generationByConversation,
+        [conversationId]: {
+          runId: null,
+          status: "generating",
+          failureReason: null,
+          retryContent: trimmed,
+        },
+      },
       error: null,
     }));
 
     const controller = new AbortController();
+    const clientRequestId = crypto.randomUUID();
     abortController = controller;
     activeStreamConversationId = conversationId;
 
@@ -692,7 +726,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const response = await apiFetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, content: trimmed }),
+        body: JSON.stringify({
+          conversationId,
+          content: trimmed,
+          clientRequestId,
+        }),
         signal: controller.signal,
       });
 
@@ -715,9 +753,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
         throw new Error("AI 响应无效。");
       }
 
+      const runId = response.headers.get("X-Chat-Run-Id");
+      set((state) => ({
+        streamingRunId: runId,
+        generationByConversation: {
+          ...state.generationByConversation,
+          [conversationId]: {
+            ...state.generationByConversation[conversationId],
+            runId,
+            status: "generating",
+          },
+        },
+      }));
+
       const reader = response.body.getReader();
 
-      await consumeSseStream(
+      const streamResult = await consumeSseStream(
         reader,
         (event) => {
           if (
@@ -740,32 +791,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
         { signal: controller.signal },
       );
 
-      if (!controller.signal.aborted) {
+      if (
+        !controller.signal.aborted &&
+        !streamResult.receivedDone &&
+        !streamResult.receivedCancelled
+      ) {
+        throw new Error("流式响应意外结束，请重试。");
+      }
+
+      if (!controller.signal.aborted && streamResult.receivedDone) {
         displayQueue.markNetworkDone();
         displayQueue.flushSync();
         clearStreamingIfMatch(set, conversationId);
-        // 落库使用网络完整文本；UI 流式状态已在 flush 后结束
-        await finalizeRound(
-          set,
-          conversationId,
-          userMessage.id,
-          assistantMessage.id,
-          trimmed,
-          networkAssistantText,
-        );
+        set((state) => ({
+          generationByConversation: {
+            ...state.generationByConversation,
+            [conversationId]: {
+              ...state.generationByConversation[conversationId],
+              status: "completed",
+              failureReason: null,
+            },
+          },
+        }));
       } else {
         displayQueue.flushSync();
         displayQueue.cancel();
-        await finalizeRound(
-          set,
-          conversationId,
-          userMessage.id,
-          assistantMessage.id,
-          trimmed,
-          networkAssistantText,
-        );
         clearStreamingIfMatch(set, conversationId);
+        set((state) => ({
+          generationByConversation: {
+            ...state.generationByConversation,
+            [conversationId]: {
+              ...state.generationByConversation[conversationId],
+              status: "cancelled",
+              failureReason: null,
+            },
+          },
+        }));
       }
+      await get().loadMessages(conversationId, { force: true });
     } catch (error) {
       if (error instanceof Error && error.message === "UNAUTHORIZED") {
         displayQueue.cancel();
@@ -776,15 +839,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       if (controller.signal.aborted) {
         displayQueue.flushSync();
         displayQueue.cancel();
-        await finalizeRound(
-          set,
-          conversationId,
-          userMessage.id,
-          assistantMessage.id,
-          trimmed,
-          networkAssistantText,
-        );
         clearStreamingIfMatch(set, conversationId);
+        set((state) => ({
+          generationByConversation: {
+            ...state.generationByConversation,
+            [conversationId]: {
+              ...state.generationByConversation[conversationId],
+              status: "cancelled",
+              failureReason: null,
+            },
+          },
+        }));
+        await get().loadMessages(conversationId, { force: true });
         return;
       }
 
@@ -809,8 +875,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
             state.streamingConversationId === conversationId
               ? null
               : state.streamingConversationId,
+          streamingRunId:
+            state.streamingConversationId === conversationId
+              ? null
+              : state.streamingRunId,
+          generationByConversation: {
+            ...state.generationByConversation,
+            [conversationId]: {
+              ...state.generationByConversation[conversationId],
+              status: "failed",
+              failureReason: message,
+            },
+          },
         };
       });
+      await get().loadMessages(conversationId, { force: true });
     } finally {
       if (abortController === controller) {
         abortController = null;
@@ -821,6 +900,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         activeDisplayQueue = null;
       }
     }
+  },
+
+  retryFailedMessage: async (conversationId) => {
+    const generation = get().generationByConversation[conversationId];
+    if (!generation?.retryContent) {
+      return;
+    }
+
+    await get().sendMessage(conversationId, generation.retryContent);
   },
 
   abortStream: () => {
@@ -834,7 +922,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     activeDisplayQueue?.cancel();
     activeDisplayQueue = null;
     activeStreamConversationId = null;
-    set({ streamingConversationId: null });
+    set({ streamingConversationId: null, streamingRunId: null });
   },
 
   regenerateMessage: async (conversationId, assistantMessageId) => {
@@ -860,71 +948,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
 
-    const toRemove = messages.slice(assistantIndex);
-
-    set({ error: null });
-
-    try {
-      await Promise.all(
-        toRemove
-          .filter((message) => isPersistedMessageId(message.id))
-          .map((message) =>
-            deletePersistedMessage(conversationId, message.id),
-          ),
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "删除消息失败，请稍后重试。";
-      set({ error: message });
-      return;
-    }
-
-    const newAssistant: ChatMessage = {
-      id: createMessageId("assistant"),
-      role: "assistant",
-      content: "",
-      createdAt: new Date(),
-    };
-
-    set({
-      messagesByConversation: {
-        ...get().messagesByConversation,
-        [conversationId]: [
-          ...messages.slice(0, assistantIndex),
-          newAssistant,
-        ],
-      },
-      streamingConversationId: conversationId,
-    });
-
-    await runAssistantStream(set, {
-      conversationId,
-      assistantMessageId: newAssistant.id,
-      onFinalize: (networkAssistantText) =>
-        finalizeRegenerateRound(
-          set,
-          conversationId,
-          newAssistant.id,
-          networkAssistantText,
-        ),
-      onStreamError: (tempAssistantId) => {
-        set((state) => {
-          const current = state.messagesByConversation[conversationId] ?? [];
-          return {
-            messagesByConversation: {
-              ...state.messagesByConversation,
-              [conversationId]: current.filter(
-                (message) =>
-                  !(
-                    message.id === tempAssistantId &&
-                    message.content.length === 0
-                  ),
-              ),
-            },
-          };
-        });
-      },
-    });
+    // 保留原回答。新的候选回复作为新的对话轮次生成，避免生成失败时丢失历史。
+    await get().sendMessage(conversationId, userMessage.content);
+    return;
   },
 
   deleteMessage: async (conversationId, messageId) => {
