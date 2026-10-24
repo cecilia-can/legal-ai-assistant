@@ -94,6 +94,7 @@ model Conversation {
   updatedAt DateTime  @updatedAt
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  Message[]
+  chatRuns  ChatRun[]
 
   @@index([userId, updatedAt])
 }
@@ -105,8 +106,30 @@ model Message {
   content        String       @db.Text
   createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userChatRun    ChatRun?     @relation("ChatRunUserMessage")
+  assistantChatRun ChatRun?   @relation("ChatRunAssistantMessage")
 
   @@index([conversationId, createdAt])
+}
+
+model ChatRun {
+  id                 String       @id @default(cuid())
+  conversationId     String
+  userMessageId      String       @unique
+  assistantMessageId String       @unique
+  clientRequestId    String
+  status             String       @default("generating")
+  failureReason      String?
+  startedAt          DateTime     @default(now())
+  completedAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userMessage        Message      @relation("ChatRunUserMessage", fields: [userMessageId], references: [id], onDelete: Restrict)
+  assistantMessage   Message      @relation("ChatRunAssistantMessage", fields: [assistantMessageId], references: [id], onDelete: Restrict)
+
+  @@unique([conversationId, clientRequestId])
+  @@index([conversationId, status])
 }
 
 model KnowledgeBase {

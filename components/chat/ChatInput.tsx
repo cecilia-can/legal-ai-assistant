@@ -100,7 +100,7 @@ export function ChatInput({
       </div>
       <p className="text-xs text-muted">
         {isStreaming
-          ? "Enter 发送新问题（将停止当前回复），Shift+Enter 换行 · Ctrl+Shift+O 新建 · Shift+Esc 聚焦 · Ctrl+. 停止"
+          ? "AI 正在回复，可点击停止生成 · Ctrl+Shift+O 新建 · Shift+Esc 聚焦 · Ctrl+. 停止"
           : "Enter 发送，Shift+Enter 换行 · Ctrl+Shift+O 新建 · Shift+Esc 聚焦输入"}
       </p>
     </form>

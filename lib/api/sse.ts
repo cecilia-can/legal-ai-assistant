@@ -58,6 +58,11 @@ export type ParseSseChunkResult = {
   remainder: string;
 };
 
+export type ConsumeSseStreamResult = {
+  receivedDone: boolean;
+  receivedCancelled: boolean;
+};
+
 /**
  * 从累积文本中增量解析 SSE 帧。
  * 按 `\n\n` 分隔完整事件；
@@ -125,14 +130,26 @@ export async function consumeSseStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onEvent: (event: ChatStreamEvent) => void | Promise<void>,
   options?: { signal?: AbortSignal },
-): Promise<void> {
+): Promise<ConsumeSseStreamResult> {
   const decoder = new TextDecoder();
   let remainder = "";
+  let receivedDone = false;
+  let receivedCancelled = false;
+
+  const deliver = async (event: ChatStreamEvent) => {
+    if (event.type === "done") {
+      receivedDone = true;
+    }
+    if (event.type === "cancelled") {
+      receivedCancelled = true;
+    }
+    await onEvent(event);
+  };
 
   while (true) {
     if (options?.signal?.aborted) {
       await reader.cancel();
-      return;
+      return { receivedDone, receivedCancelled };
     }
 
     const { done, value } = await reader.read();
@@ -147,10 +164,10 @@ export async function consumeSseStream(
     for (const event of parsed.events) {
       if (options?.signal?.aborted) {
         await reader.cancel();
-        return;
+        return { receivedDone, receivedCancelled };
       }
 
-      await onEvent(event);
+      await deliver(event);
     }
   }
 
@@ -159,7 +176,9 @@ export async function consumeSseStream(
   if (remainder.trim()) {
     const parsed = parseSseChunk(`${remainder}\n\n`);
     for (const event of parsed.events) {
-      await onEvent(event);
+      await deliver(event);
     }
   }
+
+  return { receivedDone, receivedCancelled };
 }

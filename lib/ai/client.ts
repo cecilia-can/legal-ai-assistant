@@ -4,6 +4,7 @@ import type { ModelMessage } from "@/types/chat";
 const DEFAULT_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-chat";
 const RETRY_DELAY_MS = 500;
+const DEFAULT_TIMEOUT_MS = 90_000;
 
 export class AiConfigError extends Error {
   constructor(message: string) {
@@ -39,10 +40,19 @@ export function getModelName(): string {
   return process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL;
 }
 
+function getTimeoutMs(): number {
+  const configured = Number(process.env.CHAT_MODEL_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0
+    ? configured
+    : DEFAULT_TIMEOUT_MS;
+}
+
 function createOpenAiClient(): OpenAI {
   return new OpenAI({
     apiKey: getApiKey(),
     baseURL: getBaseUrl(),
+    timeout: getTimeoutMs(),
+    maxRetries: 1,
   });
 }
 
@@ -77,18 +87,22 @@ function toAiServiceError(error: unknown): AiServiceError {
 
 export async function createChatCompletionStream(
   messages: ModelMessage[],
+  options?: { signal?: AbortSignal },
 ): Promise<AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
   let lastError: AiServiceError | null = null;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const client = createOpenAiClient();
-      return await client.chat.completions.create({
-        model: getModelName(),
-        messages,
-        stream: true,
-        stream_options: { include_usage: true },
-      });
+      return await client.chat.completions.create(
+        {
+          model: getModelName(),
+          messages,
+          stream: true,
+          stream_options: { include_usage: true },
+        },
+        { signal: options?.signal },
+      );
     } catch (error) {
       if (error instanceof AiConfigError) {
         throw error;

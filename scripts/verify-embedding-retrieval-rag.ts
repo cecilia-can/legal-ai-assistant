@@ -30,8 +30,8 @@ function main() {
   const context = buildRagContext([result(), result({ chunkId: "chunk-2", pageFrom: 3, pageTo: 4, text: "第二段资料。" })]);
   assert.ok(context);
   assert.equal(context.sourceCount, 2);
-  assert.match(context.content, /\[来源1\].*第 1 页/s);
-  assert.match(context.content, /\[来源2\].*第 3-4 页/s);
+  assert.match(context.content, /\[来源1\][\s\S]*第 1 页/);
+  assert.match(context.content, /\[来源2\][\s\S]*第 3-4 页/);
   assert.match(context.content, /资料不足时明确说明/);
   console.log("embedding retrieval RAG verification passed");
 }

@@ -67,9 +67,13 @@ export default function HomePage() {
   const olderMessagesError = useChatStore((state) => state.olderMessagesError);
   const deletingMessageId = useChatStore((state) => state.deletingMessageId);
   const chatError = useChatStore((state) => state.error);
+  const generationByConversation = useChatStore(
+    (state) => state.generationByConversation,
+  );
   const loadMessages = useChatStore((state) => state.loadMessages);
   const loadOlderMessages = useChatStore((state) => state.loadOlderMessages);
   const sendMessage = useChatStore((state) => state.sendMessage);
+  const retryFailedMessage = useChatStore((state) => state.retryFailedMessage);
   const abortStream = useChatStore((state) => state.abortStream);
   const deleteMessage = useChatStore((state) => state.deleteMessage);
   const regenerateMessage = useChatStore((state) => state.regenerateMessage);
@@ -118,6 +122,26 @@ export default function HomePage() {
     clearChatError();
     void loadMessages(activeId);
   }, [activeId, clearChatError, loadMessages]);
+
+  const handleRetryChat = useCallback(() => {
+    if (!activeId) {
+      return;
+    }
+
+    const generation = generationByConversation[activeId];
+    clearChatError();
+    if (generation?.status === "failed" || generation?.status === "cancelled") {
+      void retryFailedMessage(activeId);
+      return;
+    }
+    void loadMessages(activeId, { force: true });
+  }, [
+    activeId,
+    clearChatError,
+    generationByConversation,
+    loadMessages,
+    retryFailedMessage,
+  ]);
 
   const handleLoadOlderMessages = useCallback(() => {
     if (!activeId) {
@@ -378,7 +402,7 @@ export default function HomePage() {
               subtitle={
                 activeId
                   ? isStreaming
-                    ? "AI 正在回复… 可停止或输入新问题"
+                    ? "AI 正在回复… 可停止生成，完成后可继续提问"
                     : "输入法律问题，AI 将流式回复；历史消息已持久化"
                   : "创建或选择一个会话开始对话"
               }
@@ -389,7 +413,7 @@ export default function HomePage() {
                       <InlineError
                         message={chatError}
                         onDismiss={clearChatError}
-                        onRetry={handleRetryMessages}
+                        onRetry={handleRetryChat}
                         retrying={isMessagesLoading}
                       />
                     </div>
@@ -436,7 +460,7 @@ export default function HomePage() {
                 <ChatInput
                   inputId={CHAT_INPUT_ID}
                   onSubmit={handleSubmitMessage}
-                  disabled={!activeId || isLoading}
+                  disabled={!activeId || isLoading || isStreaming}
                   isStreaming={isStreaming}
                   onStop={handleStopStream}
                 />
