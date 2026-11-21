@@ -16,6 +16,14 @@ export type ChatUsageLogEvent =
       local_full_input: number;
       local_trimmed_input: number;
       saved_by_truncation_est: number;
+      contextLayers?: {
+        memory_tokens: number;
+        recent_history_tokens: number;
+        recall_tokens: number;
+        rag_tokens: number;
+        omitted_recall: boolean;
+        omitted_history_messages: number;
+      };
     };
 
 export function isChatUsageLogEnabled(): boolean {
@@ -49,6 +57,14 @@ export function logChatCompletion(params: {
   local_full_input: number;
   local_trimmed_input: number;
   saved_by_truncation_est: number;
+  contextLayers?: {
+    memory_tokens: number;
+    recent_history_tokens: number;
+    recall_tokens: number;
+    rag_tokens: number;
+    omitted_recall: boolean;
+    omitted_history_messages: number;
+  };
 }): void {
   if (!isChatUsageLogEnabled()) {
     return;
@@ -62,5 +78,6 @@ export function logChatCompletion(params: {
     local_full_input: params.local_full_input,
     local_trimmed_input: params.local_trimmed_input,
     saved_by_truncation_est: params.saved_by_truncation_est,
+    contextLayers: params.contextLayers,
   });
 }

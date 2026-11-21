@@ -16,6 +16,7 @@
 | 1.5 持久化优化与调整复盘 | [1.5面试文档/1.5-message-persistence-optimizations.md](./1.5面试文档/1.5-message-persistence-optimizations.md) | — | 2026-07-27 |
 | 1.6 Markdown 渲染性能调研 | [1.6面试文档/1.6-markdown-rendering-performance-investigation.md](./1.6面试文档/1.6-markdown-rendering-performance-investigation.md) | — | 2026-07-28 |
 | 1.7 Prompt 工程：上下文与安全 | [1.7面试文档/1.7-prompt-engineering-context-and-security.md](./1.7面试文档/1.7-prompt-engineering-context-and-security.md) | 10 | 2026-07-29 |
+| 1.7 Prompt 工程优化 | [1.7-prompt-engineering.md](./1.7-prompt-engineering.md) | 4 | 2026-10-25 |
 | 1.9 登录后会话客户端不同步 | [1.9面试文档/1.9-login-session-client-sync.md](./1.9面试文档/1.9-login-session-client-sync.md) | — | 2026-08-02 |
 | 1.9.1 OAuth 第三方登录 | [1.9.1-oauth-provider.md](./1.9.1-oauth-provider.md) | 10 | 2026-08-08 |
 | 2.1 知识库数据模型与向量基础设施 | [2.1-knowledge-base-foundation.md](./2.1-knowledge-base-foundation.md) | 5 | 2026-08-09 |

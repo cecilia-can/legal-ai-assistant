@@ -88,6 +88,21 @@ npx prisma migrate dev
 npm run dev
 ```
 
+`npm run dev` 会同时启动 Next.js 和会话摘要 worker。聊天达到压缩阈值后，任务先写入
+`MemoryCompactionTask`，worker 每 10 秒检查待处理任务并更新 `ConversationMemory`；
+浏览器用户无需运行压缩命令。单独调试 Next.js 可使用 `npm run dev:next`，一次性处理
+待办任务可使用 `npm run memory:compact`。测试时使用的极低阈值（如 `0.02`）不适合
+常规使用，应在验证后恢复应用配置。首次摘要生成前，聊天会在输入预算内保留原始历史。
+
+常驻 Node.js 部署可以将 `npm run memory:work` 作为与 Web 服务并列的受管理进程运行，
+使其在故障后自动重启。worker 会将运行超过 10 分钟的任务重新置为待处理；达到最大
+尝试次数的任务会标记为失败，原始消息不会被删除。
+
+当前 Vercel Serverless 部署不会运行常驻 Node.js worker。部署时必须另配平台定时
+触发器或外部 worker，否则只有硬预算触发的同步压缩可能执行；本地 `npm run dev`
+的自动执行不等于 Vercel 已自动配置。选择定时触发方式时还须核对账号的调度频率和
+函数时长限制。
+
 ### Phase 2 本地知识库数据库
 
 Phase 2 使用 PostgreSQL + pgvector 保存法律知识库和文档向量。项目的

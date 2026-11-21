@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { invalidateMemoryForDeletedMessage } from "@/lib/memory/service";
 
 export type MessageRole = "user" | "assistant";
 
@@ -222,5 +223,8 @@ export async function deleteMessage(
     throw new MessageServiceError("消息不存在。", "NOT_FOUND");
   }
 
-  await prisma.message.delete({ where: { id: messageId } });
+  await prisma.$transaction(async (tx) => {
+    await tx.message.delete({ where: { id: messageId } });
+  });
+  await invalidateMemoryForDeletedMessage(conversationId, messageId);
 }

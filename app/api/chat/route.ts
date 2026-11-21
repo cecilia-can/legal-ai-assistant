@@ -1,8 +1,9 @@
 import OpenAI from "openai";
 import { jsonError } from "@/lib/api/api-response";
 import { encodeSseEvent, getSseResponseHeaders } from "@/lib/api/sse";
-import { buildModelMessages, computeInputTokenStats } from "@/lib/ai/context";
+import { buildConversationContext, computeInputTokenStats, shouldScheduleMemoryCompaction } from "@/lib/ai/context";
 import { logChatCompletion, logJailbreakBlocked } from "@/lib/ai/chatUsageLog";
+import { getMaxInputTokens } from "@/lib/ai/tokenizer";
 import { checkChatRateLimit, recordChatTokenUsage } from "@/lib/ai/rateLimit";
 import { getJailbreakRejectionMessage, isLatestUserJailbreak } from "@/lib/ai/jailbreak";
 import { AiConfigError, AiServiceError, createChatCompletionStream, extractDeltaText, extractUsageFromChunk } from "@/lib/ai/client";
@@ -10,6 +11,9 @@ import { requireApiSession } from "@/lib/auth/require-api-session";
 import { buildRagContext } from "@/lib/rag/context";
 import { isRagEnabled } from "@/lib/rag/config";
 import { retrieveRelevantChunks } from "@/lib/rag/retrieval";
+import { isConversationMemoryEnabled, isConversationMemoryRecallEnabled } from "@/lib/memory/config";
+import { buildConversationRecallContext, retrieveConversationRecall } from "@/lib/memory/recall";
+import { enqueueMemoryCompaction, getConversationMemory, processMemoryCompactionTask } from "@/lib/memory/service";
 import { ChatRunServiceError, completeChatRun, createOrGetChatRun, finishChatRun } from "@/lib/services/chatRunService";
 import { MessageServiceError, listConversationMessagesForChat } from "@/lib/services/messageService";
 import type { ChatApiMessage, ChatStreamEvent } from "@/types/chat";
@@ -119,7 +123,48 @@ export async function POST(request: Request) {
     }
   }
 
-  const tokenStats = computeInputTokenStats(apiMessages, ragContext);
+  let memory = null;
+  let recall = null;
+  if (isConversationMemoryEnabled()) {
+    try {
+      memory = await getConversationMemory(conversationId, session.userId);
+      if (isConversationMemoryRecallEnabled()) {
+        try {
+          const results = await retrieveConversationRecall({
+            conversationId,
+            userId: session.userId,
+            query: latestUser.content,
+          });
+          recall = buildConversationRecallContext(results);
+        } catch (error) {
+          // Recall is an optional enhancement; a failed index must not stop chat.
+          console.error("POST /api/chat failed retrieving conversation recall:", error);
+        }
+      }
+    } catch (error) {
+      await finishChatRun({ runId: run.id, status: "failed", content: "", failureReason: "UPSTREAM_ERROR" });
+      console.error("POST /api/chat failed loading conversation memory:", error);
+      return jsonError("无法加载会话记忆，请稍后重试。", 500);
+    }
+  }
+
+  const contextInput = { history: apiMessages, ragContext, memory, recall };
+  let modelContext = buildConversationContext(contextInput);
+  if (isConversationMemoryEnabled() && shouldScheduleMemoryCompaction(contextInput)) {
+    try {
+      const scheduled = await enqueueMemoryCompaction({ conversationId, userId: session.userId });
+      if (scheduled.taskId && modelContext.tokenStats.local_full_input > getMaxInputTokens()) {
+        await processMemoryCompactionTask(scheduled.taskId);
+        memory = await getConversationMemory(conversationId, session.userId);
+        modelContext = buildConversationContext({ ...contextInput, memory });
+      }
+    } catch (error) {
+      // The durable task can be retried by the worker; normal chat remains available.
+      console.error("POST /api/chat failed scheduling memory compaction:", error);
+    }
+  }
+
+  const tokenStats = modelContext.tokenStats;
   if (!recordChatTokenUsage(session.userId, tokenStats.local_trimmed_input).allowed) {
     await finishChatRun({ runId: run.id, status: "failed", content: "", failureReason: "UPSTREAM_ERROR" });
     return jsonError("已达到今日 token 使用上限，请明天再试。", 429);
@@ -140,7 +185,7 @@ export async function POST(request: Request) {
   const abortFromClient = () => upstreamController.abort();
   request.signal.addEventListener("abort", abortFromClient, { once: true });
   try {
-    upstream = await createChatCompletionStream(buildModelMessages(apiMessages, ragContext), { signal: upstreamController.signal });
+    upstream = await createChatCompletionStream(modelContext.messages, { signal: upstreamController.signal });
   } catch (error) {
     clearTimeout(totalTimer);
     if (firstTokenTimer) clearTimeout(firstTokenTimer);
@@ -156,6 +201,7 @@ export async function POST(request: Request) {
     const encoder = new TextEncoder();
     let text = "";
     let lastUsage: { prompt_tokens: number; completion_tokens: number } | null = null;
+    let finishReason: string | null = null;
     try {
       for await (const chunk of upstream) {
         if (request.signal.aborted) {
@@ -165,6 +211,8 @@ export async function POST(request: Request) {
         }
         const usage = extractUsageFromChunk(chunk);
         if (usage) lastUsage = usage;
+        const reason = chunk.choices[0]?.finish_reason;
+        if (reason) finishReason = reason;
         const delta = extractDeltaText(chunk);
         if (delta) {
           if (firstTokenTimer) {
@@ -180,8 +228,22 @@ export async function POST(request: Request) {
           controller.enqueue(encoder.encode(encodeSseEvent({ type: "token", text: delta })));
         }
       }
+      if (!text.trim()) {
+        console.warn(JSON.stringify({
+          event: "chat_empty_model_response",
+          conversationId,
+          modelFinishReason: finishReason,
+          completionTokens: lastUsage?.completion_tokens ?? null,
+        }));
+        await finishChatRun({ runId: run.id, status: "failed", content: "", failureReason: "UPSTREAM_ERROR" });
+        controller.enqueue(encoder.encode(encodeSseEvent(streamError(
+          "模型未返回可显示的回答；请增大聊天输出 token 上限后重试。",
+          "UPSTREAM_ERROR",
+        ))));
+        return;
+      }
       await completeChatRun({ runId: run.id, content: text });
-      if (lastUsage) logChatCompletion({ conversationId, usage: lastUsage, local_full_input: tokenStats.local_full_input, local_trimmed_input: tokenStats.local_trimmed_input, saved_by_truncation_est: tokenStats.saved_by_truncation_est });
+      if (lastUsage) logChatCompletion({ conversationId, usage: lastUsage, local_full_input: tokenStats.local_full_input, local_trimmed_input: tokenStats.local_trimmed_input, saved_by_truncation_est: tokenStats.saved_by_truncation_est, contextLayers: tokenStats });
       controller.enqueue(encoder.encode(encodeSseEvent({ type: "done" })));
     } catch (error) {
       const cancelled = request.signal.aborted;
