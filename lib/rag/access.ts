@@ -1,4 +1,4 @@
-import "server-only";
+// Authorization is also used by standalone document workers.
 
 import { prisma } from "@/lib/db";
 

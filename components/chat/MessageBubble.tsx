@@ -34,6 +34,7 @@ function messageBubblePropsAreEqual(
   return (
     prev.message.id === next.message.id &&
     prev.message.content === next.message.content &&
+    prev.message.sources === next.message.sources &&
     prev.message.role === next.message.role &&
     prev.useMarkdown === next.useMarkdown &&
     prev.deleteDisabled === next.deleteDisabled &&
@@ -100,7 +101,7 @@ function MessageBubbleComponent({
             ) : null}
           </div>
           {showAssistantMarkdown ? (
-            <MessageContent content={message.content} />
+            <MessageContent content={message.content} sources={message.sources} />
           ) : (
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           )}

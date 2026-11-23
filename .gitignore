@@ -43,6 +43,12 @@ next-env.d.ts
 
 /app/generated/prisma
 
+# Uploaded originals and derived documents may contain private material.
+/data/document-originals/
+/data/document-artifacts/
+/data/knowledge-verification/
+/data/knowledge-browser-fixture.json
+
 # python虚拟环境
 /.venv/
 

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { PanelLeftClose, X } from "lucide-react";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { Button } from "@/components/ui/Button";
@@ -48,6 +49,7 @@ export function Sidebar({ children, onNewChat, onClose, onCollapse }: SidebarPro
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <Link href="/knowledge-bases" className="mx-4 mb-3 rounded-lg border border-border px-3 py-2 text-center text-sm text-muted hover:border-primary/40 hover:text-primary">知识库管理</Link>
       <UserMenu />
     </aside>
   );

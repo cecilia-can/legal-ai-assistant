@@ -3,6 +3,7 @@
 import { Check, Copy } from "lucide-react";
 import {
   useCallback,
+  useMemo,
   useRef,
   useState,
   memo,
@@ -13,9 +14,12 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 
 import { IconButton } from "@/components/ui/IconButton";
+import { citationRemarkPlugin } from "@/lib/rag/citation-markdown";
+import type { ChatSource } from "@/types/chat";
 
 interface MessageContentProps {
   content: string;
+  sources?: ChatSource[];
 }
 
 function CodeBlockPre({
@@ -118,7 +122,25 @@ const markdownRehypePlugins = [rehypeHighlight];
 
 export const MessageContent = memo(function MessageContent({
   content,
+  sources = [],
 }: MessageContentProps) {
+  const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const toggleSource = useCallback((number: number) => {
+    setSelectedNumber((current) => current === number ? null : number);
+  }, []);
+  const sourceNumbers = useMemo(() => new Set(sources.map((source) => source.number)), [sources]);
+  const remarkPlugins = useMemo(() => [...markdownRemarkPlugins, () => citationRemarkPlugin(sourceNumbers)], [sourceNumbers]);
+  const components = useMemo(() => ({
+    ...markdownComponents,
+    a: ({ href, children, ...props }: ComponentPropsWithoutRef<"a">) => {
+      const number = /^#rag-source-(\d+)$/.exec(href ?? "")?.[1];
+      if (number && sourceNumbers.has(Number(number))) {
+        return <button type="button" className="font-medium text-primary underline underline-offset-2 hover:opacity-80" onClick={() => toggleSource(Number(number))} aria-expanded={selectedNumber === Number(number)} aria-label={`${selectedNumber === Number(number) ? "收起" : "查看"}来源${number}原文`}>{children}</button>;
+      }
+      return <MarkdownLink href={href} {...props}>{children}</MarkdownLink>;
+    },
+  }), [selectedNumber, sourceNumbers, toggleSource]);
+  const selectedSource = sources.find((source) => source.number === selectedNumber);
   if (!content) {
     return null;
   }
@@ -126,12 +148,26 @@ export const MessageContent = memo(function MessageContent({
   return (
     <div className="markdown-body">
       <ReactMarkdown
-        remarkPlugins={markdownRemarkPlugins}
+        remarkPlugins={remarkPlugins}
         rehypePlugins={markdownRehypePlugins}
-        components={markdownComponents}
+        components={components}
       >
         {content}
       </ReactMarkdown>
+      {sources.length > 0 ? (
+        <div className="mt-4 border-t border-border pt-3 text-sm">
+          <p className="font-medium">本次检索来源</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {sources.map((source) => <button key={source.number} type="button" className="rounded-lg border border-border px-2 py-1 text-left text-xs text-primary hover:bg-background" onClick={() => toggleSource(source.number)} aria-expanded={selectedNumber === source.number} aria-label={`${selectedNumber === source.number ? "收起" : "查看"}来源${source.number}原文`}>[来源{source.number}] {source.documentTitle}</button>)}
+          </div>
+          {selectedSource ? <section className="mt-3 rounded-lg border border-border bg-background p-3" aria-label={`来源${selectedSource.number}原文`}>
+            <div className="flex items-start justify-between gap-3"><p className="font-medium">[来源{selectedSource.number}] {selectedSource.documentTitle}</p><button type="button" className="shrink-0 text-xs text-primary underline underline-offset-2" onClick={() => setSelectedNumber(null)} aria-label={`收起来源${selectedSource.number}详情`}>收起</button></div>
+            <p className="mt-1 text-xs text-muted">{selectedSource.sectionPath || "未标注章节"} · {selectedSource.pageFrom ? `第 ${selectedSource.pageFrom}${selectedSource.pageTo && selectedSource.pageTo !== selectedSource.pageFrom ? `–${selectedSource.pageTo}` : ""} 页` : "无物理页码"}</p>
+            <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words text-xs leading-6">{selectedSource.text}</pre>
+            <a className="mt-2 inline-block text-xs text-primary underline" href={`/knowledge-bases/${encodeURIComponent(selectedSource.knowledgeBaseId)}/documents/${encodeURIComponent(selectedSource.documentId)}`}>打开文档详情</a>
+          </section> : null}
+        </div>
+      ) : null}
     </div>
   );
 });

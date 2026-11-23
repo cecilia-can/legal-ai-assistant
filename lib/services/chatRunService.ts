@@ -1,6 +1,7 @@
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { MessageServiceError } from "@/lib/services/messageService";
+import type { ChatSource } from "@/types/chat";
 
 export const CHAT_RUN_STATUSES = [
   "generating",
@@ -141,6 +142,7 @@ export async function createOrGetChatRun(input: {
 export async function completeChatRun(input: {
   runId: string;
   content: string;
+  sources?: ChatSource[];
 }): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const run = await tx.chatRun.findUnique({
@@ -152,7 +154,7 @@ export async function completeChatRun(input: {
     }
     await tx.message.update({
       where: { id: run.assistantMessageId },
-      data: { content: input.content },
+      data: { content: input.content, ...(input.sources?.length ? { sources: input.sources as unknown as Prisma.InputJsonValue } : {}) },
     });
     await tx.chatRun.update({
       where: { id: input.runId },

@@ -8,6 +8,7 @@ export type MessageRecord = {
   conversationId: string;
   role: string;
   content: string;
+  sources?: unknown;
   createdAt: Date;
 };
 

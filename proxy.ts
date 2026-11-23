@@ -30,6 +30,6 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/((?!api/conversations|api/chat|_next/static|_next/image|favicon.ico|.*\\..*).*)",
+    "/((?!api/conversations|api/chat|api/knowledge-bases|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };

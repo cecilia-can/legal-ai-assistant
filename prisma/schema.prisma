@@ -162,6 +162,7 @@ model Message {
   conversationId String
   role           String
   content        String       @db.Text
+  sources        Json?
   createdAt      DateTime     @default(now())
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   userChatRun    ChatRun?     @relation("ChatRunUserMessage")
@@ -210,6 +211,7 @@ model Document {
   knowledgeBaseId      String
   uploadedByUserId     String?
   originalFilename     String
+  originalFileUri      String?
   title                String?
   sourceIdentifier     String
   sourceUri            String?         @db.Text
@@ -223,6 +225,10 @@ model Document {
   normalizationVersion String?
   normalizedUri        String?         @db.Text
   normalizedContentHash String?
+  ocrOriginalNormalizedUri String?     @db.Text
+  reviewedNormalizedHash String?
+  reviewedAt           DateTime?
+  reviewedByUserId     String?
   extractionMethod     String?
   ocrEngine            String?
   ocrVersion           String?
@@ -237,6 +243,7 @@ model Document {
   uploadedBy           User?           @relation("DocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
   chunkSets            DocumentChunkSet[]
   chunks               DocumentChunk[]
+  processingTasks      DocumentProcessingTask[]
 
   @@unique([knowledgeBaseId, sourceIdentifier, contentHash])
   @@index([knowledgeBaseId, updatedAt])
@@ -295,6 +302,30 @@ model Embedding {
 
   @@unique([chunkId, model, contentHash])
   @@index([model, dimensions])
+}
+
+model DocumentProcessingTask {
+  id                String   @id @default(cuid())
+  documentId        String
+  requestedByUserId String
+  action            String
+  status            String   @default("pending")
+  stage             String   @default("queued")
+  completed         Int      @default(0)
+  total             Int      @default(0)
+  attempts          Int      @default(0)
+  errorMessage      String?  @db.Text
+  result            Json?
+  leaseToken        String?
+  leaseExpiresAt    DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  document          Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([documentId, createdAt])
 }
 
 model EmbeddingTask {

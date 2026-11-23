@@ -20,6 +20,7 @@ export function getIngestionConfig(
       overrides.sourceRoot ??
       (process.env.DOCUMENT_SOURCE_ROOT || undefined),
     artifactRoot: path.resolve(
+      /* turbopackIgnore: true */
       overrides.artifactRoot ??
         process.env.DOCUMENT_ARTIFACT_ROOT ??
         "data/document-artifacts",

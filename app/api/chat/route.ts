@@ -16,7 +16,7 @@ import { buildConversationRecallContext, retrieveConversationRecall } from "@/li
 import { enqueueMemoryCompaction, getConversationMemory, processMemoryCompactionTask } from "@/lib/memory/service";
 import { ChatRunServiceError, completeChatRun, createOrGetChatRun, finishChatRun } from "@/lib/services/chatRunService";
 import { MessageServiceError, listConversationMessagesForChat } from "@/lib/services/messageService";
-import type { ChatApiMessage, ChatStreamEvent } from "@/types/chat";
+import type { ChatApiMessage, ChatSource, ChatStreamEvent } from "@/types/chat";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -113,9 +113,12 @@ export async function POST(request: Request) {
   }
 
   let ragContext: string | undefined;
+  let ragSources: ChatSource[] = [];
   if (isRagEnabled()) {
     try {
-      ragContext = buildRagContext(await retrieveRelevantChunks({ userId: session.userId, query: latestUser.content }))?.content;
+      const evidence = buildRagContext(await retrieveRelevantChunks({ userId: session.userId, query: latestUser.content }));
+      ragContext = evidence?.content;
+      ragSources = evidence?.sources ?? [];
     } catch (error) {
       await finishChatRun({ runId: run.id, status: "failed", content: "", failureReason: "UPSTREAM_ERROR" });
       console.error("POST /api/chat failed retrieving RAG context:", error);
@@ -242,7 +245,7 @@ export async function POST(request: Request) {
         ))));
         return;
       }
-      await completeChatRun({ runId: run.id, content: text });
+      await completeChatRun({ runId: run.id, content: text, sources: ragSources });
       if (lastUsage) logChatCompletion({ conversationId, usage: lastUsage, local_full_input: tokenStats.local_full_input, local_trimmed_input: tokenStats.local_trimmed_input, saved_by_truncation_est: tokenStats.saved_by_truncation_est, contextLayers: tokenStats });
       controller.enqueue(encoder.encode(encodeSseEvent({ type: "done" })));
     } catch (error) {

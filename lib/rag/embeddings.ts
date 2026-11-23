@@ -21,9 +21,10 @@ export async function createEmbeddings(input: string[]) {
   for (let attempt = 0; attempt <= config.maxRetries; attempt += 1) {
     try {
       const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
-      const response = await client.embeddings.create({ model: config.model, input, dimensions: config.dimensions });
-      const vectors = response.data.map((item) => item.embedding);
-      if (vectors.length !== input.length || vectors.some((vector) => vector.length !== config.dimensions)) {
+      const response = await client.embeddings.create({ model: config.model, input, dimensions: config.dimensions, encoding_format: "float" });
+      const ordered = [...response.data].sort((a, b) => a.index - b.index);
+      const vectors = ordered.map((item) => item.embedding);
+      if (vectors.length !== input.length || ordered.some((item, index) => item.index !== index) || vectors.some((vector) => vector.length !== config.dimensions || vector.some((n) => !Number.isFinite(n)))) {
         throw new EmbeddingServiceError(`Embedding 维度必须为 ${config.dimensions}，或响应数量与输入不一致。`, false);
       }
       return vectors;

@@ -1,6 +1,8 @@
 # Embedding、向量检索与 RAG
 
-本阶段只处理 `DocumentChunkSet.status = active` 的切片。每个向量以 `chunkId + model + contentHash` 唯一标识；相同输入重复运行不会重复调用模型或写入重复记录。默认模型为 `text-embedding-3-small`，维度为 1536。更换模型或维度前，必须新增对应迁移和 pgvector 索引，不能混用不同维度的向量。
+网页上传、正文/切片预览和索引状态管理见 [知识库管理说明](./knowledge-base-management.md)。
+
+本阶段只处理 `DocumentChunkSet.status = active` 的切片。每个向量以 `chunkId + model + contentHash` 唯一标识；相同输入重复运行不会重复调用模型或写入重复记录。默认模型为 `text-embedding-3-small`，维度为 1536。现也为阿里云百炼 `text-embedding-v4` 的 1536 维输出提供独立 pgvector 索引；其他模型或维度需单独核对和建索引，不能混用不同模型的向量。
 
 ## 配置
 
@@ -12,6 +14,23 @@
 - `EMBEDDING_BATCH_SIZE`、`EMBEDDING_MAX_RETRIES`：批大小和暂时性失败的重试上限。
 - `RAG_ENABLED`：只有设置为 `true` 时聊天路由才会调用检索；默认关闭以保持未配置向量服务时的既有聊天行为。
 - `RAG_TOP_K`、`RAG_MIN_SIMILARITY`、`RAG_MAX_CHUNK_CHARACTERS`、`RAG_MAX_CONTEXT_CHARACTERS`：检索和上下文的边界。
+
+### 阿里云百炼 `text-embedding-v4`
+
+在百炼控制台开通模型服务，选择调用地域和业务空间，并创建该地域、业务空间的 API Key。按控制台给出的 OpenAI 兼容地址填写 `.env`；以下仅是华北 2（北京）的地址格式，需替换真实业务空间 ID：
+
+```dotenv
+EMBEDDING_API_KEY="你的百炼 API Key"
+EMBEDDING_BASE_URL="https://你的业务空间ID.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
+EMBEDDING_MODEL="text-embedding-v4"
+EMBEDDING_DIMENSIONS="1536"
+EMBEDDING_BATCH_SIZE="10"
+RAG_ENABLED="false"
+```
+
+`text-embedding-v4` 的同步接口每批最多 10 条，必须将原默认批大小 16 调低。`OPENAI_API_KEY` 是聊天服务的独立凭证；若聊天仍使用 DeepSeek，保留现有聊天配置即可。先执行 `npx prisma migrate deploy` 创建百炼专用索引，再重启应用和 `knowledge:worker`，检查文档的当前索引模型显示为 `text-embedding-v4`，然后在文档页点击「补齐当前模型索引」。完成后再把 `RAG_ENABLED` 改为 `true` 并重启应用，验证带来源的聊天回答。不要把真实密钥提交到仓库。
+
+切换模型后，即使其他模型曾有向量，当前模型也从 `0 / N` 开始建立自己的索引。两种模型的向量不会互用。百炼 API 的真实调用需要用户自己的有效凭证与网络；本仓库的本地测试不会代替实际服务验收。
 
 ## 迁移与向量化
 
@@ -30,6 +49,8 @@ npm run embed:documents -- --user-id <userId> --knowledge-base <knowledgeBaseId>
 系统知识库对已认证用户可读；私有知识库只对 owner 可读。检索在服务端强制这些条件，再过滤活动切片集、模型和维度。所有向量值、筛选条件和数量均通过参数化 SQL 传递。
 
 聊天只接受服务端按会话身份检索到的资料。上下文为有限长度的 `[来源N]` 证据包，包含文档标题、章节和页码；模型被要求仅在证据支持时回答并引用标签。没有足够资料时不得伪造来源，应明确说明知识库无法确认。
+
+新生成的回答会在助手消息中保存本次实际送入模型的来源文本快照。点击回答中的 `[来源N]` 或下方来源列表，可查看文档标题、章节、页码和原文切片，并跳转到仍存在的文档详情。无来源快照的旧回答仍显示原始文字，不会事后用当前索引补配来源。来源标记仅说明模型引用了某个已检索切片；是否足以支持对应断言，仍需核对原文。
 
 运行 `npm run verify:embedding-rag` 可验证向量格式和来源上下文构建的核心场景。
 

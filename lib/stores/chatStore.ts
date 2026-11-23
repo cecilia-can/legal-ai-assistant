@@ -118,6 +118,7 @@ function toChatMessage(raw: MessageJson): ChatMessage {
     id: raw.id,
     role,
     content: raw.content,
+    sources: raw.sources,
     createdAt: new Date(raw.createdAt),
   };
 }

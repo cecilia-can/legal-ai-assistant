@@ -71,11 +71,14 @@ export function assertChunkingEligibility(document: {
   status: string;
   normalizedUri: string | null;
   normalizedContentHash: string | null;
+  extractionMethod?: string | null;
+  reviewedNormalizedHash?: string | null;
   knowledgeBase: { scope: string; ownerId: string | null };
 }, userId: string) {
   if (!userId || (document.knowledgeBase.scope !== "system" && document.knowledgeBase.ownerId !== userId)) throw new DocumentChunkingError("无权切片该文档。", "UNAUTHORIZED");
   if (document.status !== "succeeded") throw new DocumentChunkingError("仅可切片已成功规范化的文档。", "INVALID_INPUT");
   if (!document.normalizedUri || !document.normalizedContentHash) throw new DocumentChunkingError("文档缺少规范化产物或内容哈希。", "ARTIFACT_UNAVAILABLE");
+  if (document.extractionMethod === "ocr" && document.reviewedNormalizedHash !== document.normalizedContentHash) throw new DocumentChunkingError("请先审核并确认 OCR 正文。", "INVALID_INPUT");
 }
 
 export async function loadChunkingDocument(input: {
@@ -98,6 +101,8 @@ export async function loadChunkingDocument(input: {
       status: true,
       normalizedUri: true,
       normalizedContentHash: true,
+      extractionMethod: true,
+      reviewedNormalizedHash: true,
       knowledgeBase: { select: { scope: true, ownerId: true } },
     },
   });

@@ -682,12 +682,22 @@ export async function extractPdfPages(
       useSystemFonts: true,
     });
     const pdf = await loadingTask.promise;
+    if (pdf.numPages > 2000) {
+      await loadingTask.destroy();
+      throw new DocumentIngestionError("PDF 页数超过 2000 页处理限制，请拆分后导入。", "INVALID_INPUT");
+    }
+    let extractedCharacters = 0;
     const extractedPages: Array<{ pageNumber: number; lines: PdfTextLine[] }> = [];
     const state: StructureState = { sections: [] };
 
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
+      extractedCharacters += content.items.reduce((sum, item) => sum + ("str" in item ? item.str.length : 0), 0);
+      if (extractedCharacters > 30 * 1024 * 1024) {
+        await loadingTask.destroy();
+        throw new DocumentIngestionError("PDF 提取内容过大，请拆分后导入。", "INVALID_INPUT");
+      }
       extractedPages.push({ pageNumber, lines: pdfTextItemsToLines(content.items) });
       page.cleanup();
     }

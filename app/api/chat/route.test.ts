@@ -4,15 +4,16 @@ const mocks = vi.hoisted(() => ({
   history: vi.fn(), memory: vi.fn(), recall: vi.fn(), enqueue: vi.fn(), process: vi.fn(),
   stream: vi.fn(), finish: vi.fn(), complete: vi.fn(), createRun: vi.fn(),
   memoryEnabled: vi.fn(), recallEnabled: vi.fn(),
+  ragEnabled: vi.fn(), retrieve: vi.fn(), ragContext: vi.fn(),
 }));
 
 vi.mock("@/lib/api/api-response", () => ({ jsonError: (message: string, status: number) => Response.json({ message }, { status }) }));
 vi.mock("@/lib/auth/require-api-session", () => ({ requireApiSession: async () => ({ userId: "u1" }) }));
 vi.mock("@/lib/ai/rateLimit", () => ({ checkChatRateLimit: () => ({ allowed: true }), recordChatTokenUsage: () => ({ allowed: true }) }));
 vi.mock("@/lib/ai/jailbreak", () => ({ isLatestUserJailbreak: () => false, getJailbreakRejectionMessage: () => "" }));
-vi.mock("@/lib/rag/config", () => ({ isRagEnabled: () => false }));
-vi.mock("@/lib/rag/context", () => ({ buildRagContext: vi.fn() }));
-vi.mock("@/lib/rag/retrieval", () => ({ retrieveRelevantChunks: vi.fn() }));
+vi.mock("@/lib/rag/config", () => ({ isRagEnabled: mocks.ragEnabled }));
+vi.mock("@/lib/rag/context", () => ({ buildRagContext: mocks.ragContext }));
+vi.mock("@/lib/rag/retrieval", () => ({ retrieveRelevantChunks: mocks.retrieve }));
 vi.mock("@/lib/ai/chatUsageLog", () => ({ logChatCompletion: vi.fn(), logJailbreakBlocked: vi.fn() }));
 vi.mock("@/lib/memory/config", () => ({
   isConversationMemoryEnabled: mocks.memoryEnabled,
@@ -66,6 +67,7 @@ async function chat() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.memoryEnabled.mockReturnValue(true);
+  mocks.ragEnabled.mockReturnValue(false);
   mocks.recallEnabled.mockReturnValue(false);
   mocks.memory.mockResolvedValue(null);
   mocks.enqueue.mockResolvedValue({ queued: false });
@@ -81,6 +83,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("POST /api/chat memory integration", () => {
+  it("将本次检索来源快照与完成的回答一起保存", async () => {
+    const source = { number: 1, chunkId: "chunk-1", knowledgeBaseId: "kb-1", documentId: "doc-1", documentTitle: "劳动合同法", sectionPath: "第九条", pageFrom: 1, pageTo: 1, text: "第九条 不得扣押证件。" };
+    mocks.ragEnabled.mockReturnValue(true);
+    mocks.retrieve.mockResolvedValue([{ chunkId: "chunk-1" }]);
+    mocks.ragContext.mockReturnValue({ content: "[来源1] 劳动合同法\n第九条 不得扣押证件。", sourceCount: 1, sources: [source] });
+    await chat();
+    expect(mocks.complete).toHaveBeenCalledWith({ runId: "run1", content: "收到", sources: [source] });
+  });
+
   it("answers a short conversation before any memory exists", async () => {
     const { response, body } = await chat();
     expect(response.status).toBe(200);

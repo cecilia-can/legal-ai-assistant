@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@/app/generated/prisma/client";
 
 import { asIngestionError, DocumentIngestionError } from "./errors";
 import { classifyDocumentCategory } from "./classification";
@@ -57,6 +58,13 @@ function documentMetadata(
 
 export async function ingestDocument(
   input: IngestDocumentInput,
+  managed?: {
+    documentId: string;
+    artifactId: string;
+    originalFilename: string;
+    report(stage: string): Promise<void>;
+    publish(data: Prisma.DocumentUpdateInput): Promise<void>;
+  },
 ): Promise<IngestDocumentResult> {
   const config = getIngestionConfig(input.config);
   const knowledgeBase = await prisma.knowledgeBase.findUnique({
@@ -94,14 +102,14 @@ export async function ingestDocument(
         contentHash,
       },
     },
-    select: { id: true, status: true, extractionMethod: true, normalizedUri: true },
+    select: { id: true, status: true, extractionMethod: true, normalizedUri: true, normalizedContentHash: true },
   });
   const isRetryable =
     existing?.status === "failed" ||
     existing?.status === "ocr_failed" ||
     existing?.status === "manual_review" ||
     (input.forceReprocess === true && existing?.status === "succeeded");
-  if (existing && !isRetryable) {
+  if (existing && !isRetryable && !managed) {
     return {
       created: false,
       documentId: existing.id,
@@ -114,7 +122,7 @@ export async function ingestDocument(
     };
   }
 
-  const document = isRetryable
+  const document = managed ? { id: managed.documentId } : isRetryable
     ? await prisma.document.update({
         where: { id: existing.id },
         data: {
@@ -142,7 +150,8 @@ export async function ingestDocument(
       });
 
   try {
-    await prisma.document.update({
+    if (managed) await managed.report("processing");
+    else await prisma.document.update({
       where: { id: document.id },
       data: { status: "processing", errorMessage: null },
     });
@@ -166,12 +175,13 @@ export async function ingestDocument(
       sourceType === "pdf" &&
       (parsed.imageOnlyPageNumbers?.length ?? 0) > 0
     ) {
-      await prisma.document.update({
+      if (managed) await managed.report("ocr_processing");
+      else await prisma.document.update({
         where: { id: document.id },
         data: { status: "ocr_processing", errorMessage: null },
       });
 
-      const ocr = await runOcr(filePath, document.id, config, {
+      const ocr = await runOcr(filePath, managed?.artifactId ?? document.id, config, {
         skipExistingText: parsed.pdfPageClassification === "mixed",
       });
       ocrUri = path
@@ -213,7 +223,7 @@ export async function ingestDocument(
     // on machines that do not have LibreOffice installed.
     if (sourceType === "docx" || sourceType === "doc") {
       try {
-        const rendered = await renderWordToPdf(filePath, document.id, config);
+        const rendered = await renderWordToPdf(filePath, managed?.artifactId ?? document.id, config);
         const renderedPdf = await parsePdfDocument(await readFile(rendered.artifactPath), metadata);
         normalized = attachRenderedPdfPageLocations(normalized, renderedPdf.normalized);
         normalized.metadata = {
@@ -231,6 +241,7 @@ export async function ingestDocument(
     }
 
     normalized.metadata = documentMetadata(normalized, input, sourceIdentifier);
+    if (managed) normalized.metadata.originalFilename = managed.originalFilename;
     const categoryClassification = classifyDocumentCategory({
       normalized,
       filePath,
@@ -245,12 +256,11 @@ export async function ingestDocument(
       needsCategoryReview: categoryClassification.needsReview,
       categorySource: categoryClassification.source,
     };
-    const artifact = await writeNormalizedArtifact(document.id, normalized, config);
+    if (Buffer.byteLength(JSON.stringify(normalized), "utf8") > 80 * 1024 * 1024) throw new DocumentIngestionError("规范化产物超过 80 MiB 限制。", "INVALID_INPUT");
+    const artifact = await writeNormalizedArtifact(managed?.artifactId ?? document.id, normalized, config);
     const status: DocumentProcessingStatus = "succeeded";
 
-    await prisma.document.update({
-      where: { id: document.id },
-      data: {
+    const publishedData: Prisma.DocumentUpdateInput = {
         status,
         errorMessage: null,
         category: categoryClassification.category,
@@ -269,7 +279,16 @@ export async function ingestDocument(
           imageOnlyPageNumbers: parsed.imageOnlyPageNumbers ?? [],
           pdfPageClassification: parsed.pdfPageClassification,
         },
-      },
+    };
+    if (managed) await managed.publish(publishedData);
+    else await prisma.$transaction(async (db) => {
+      if (existing?.normalizedContentHash !== artifact.contentHash || existing?.extractionMethod === "ocr" || normalized.extractionMethod === "ocr") {
+        await db.documentChunkSet.updateMany({ where: { documentId: document.id, status: "active" }, data: { status: "superseded", activatedAt: null } });
+      }
+      await db.document.update({ where: { id: document.id }, data: {
+        ...publishedData, ocrOriginalNormalizedUri: null, reviewedNormalizedHash: null,
+        reviewedAt: null, reviewedByUserId: null,
+      } });
     });
 
     return {
@@ -282,7 +301,7 @@ export async function ingestDocument(
     };
   } catch (error) {
     const ingestionError = asIngestionError(error);
-    await prisma.document.update({
+    if (!managed) await prisma.document.update({
       where: { id: document.id },
       data: {
         status: statusForError(ingestionError),

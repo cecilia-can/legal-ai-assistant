@@ -1,9 +1,22 @@
 export type MessageRole = "user" | "assistant" | "system";
 
+export type ChatSource = {
+  number: number;
+  chunkId: string;
+  knowledgeBaseId: string;
+  documentId: string;
+  documentTitle: string;
+  sectionPath: string | null;
+  pageFrom: number | null;
+  pageTo: number | null;
+  text: string;
+};
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
+  sources?: ChatSource[];
   createdAt: Date;
 }
 
@@ -46,6 +59,7 @@ export type MessageJson = {
   conversationId: string;
   role: string;
   content: string;
+  sources?: ChatSource[];
   createdAt: string;
 };
 
